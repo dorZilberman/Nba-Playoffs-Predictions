@@ -11,11 +11,13 @@ import type { IPrediction } from "@/app/lib/models/Prediction"
 interface NBABracketViewProps {
   viewingUserId?: string
   isViewingOtherUser?: boolean
+  viewingUserName?: string
 }
 
 export function NBABracketView({
   viewingUserId,
   isViewingOtherUser = false,
+  viewingUserName = "User",
 }: NBABracketViewProps = {}) {
   const [series, setSeries] = useState<ISeries[]>([])
   const [playInGames, setPlayInGames] = useState<IPlayInGame[]>([])
@@ -171,6 +173,7 @@ export function NBABracketView({
           onGameClick={handlePlayInClick}
           isAdmin={false}
           isViewingOtherUser={isViewingOtherUser}
+          viewingUserName={isViewingOtherUser ? viewingUserName : undefined}
         />
       </div>
 
@@ -181,6 +184,7 @@ export function NBABracketView({
           predictions={predictions}
           onPredictionSave={handlePredictionSave}
           isViewingOtherUser={isViewingOtherUser}
+          viewingUserName={isViewingOtherUser ? viewingUserName : undefined}
         />
       </div>
 

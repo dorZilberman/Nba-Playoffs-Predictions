@@ -30,6 +30,7 @@ interface PlayoffBracketProps {
     }
   }) => Promise<void>
   isViewingOtherUser?: boolean
+  viewingUserName?: string
 }
 
 export function PlayoffBracket({
@@ -37,6 +38,7 @@ export function PlayoffBracket({
   predictions,
   onPredictionSave,
   isViewingOtherUser = false,
+  viewingUserName,
 }: PlayoffBracketProps) {
   return (
     <PlayoffBracketVisual
@@ -44,6 +46,7 @@ export function PlayoffBracket({
       predictions={predictions}
       onPredictionSave={onPredictionSave}
       isViewingOtherUser={isViewingOtherUser}
+      viewingUserName={viewingUserName}
     />
   )
 }

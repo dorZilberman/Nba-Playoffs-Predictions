@@ -20,6 +20,20 @@ const predictionSchema = z.object({
     .optional(),
 })
 
+/**
+ * Check if a series is locked (by time OR by winner)
+ */
+function isSeriesFullyLocked(series: any): boolean {
+  return isSeriesLocked(series) || !!series.winner
+}
+
+/**
+ * Check if a Play-In game is locked (by time OR by winner)
+ */
+function isPlayInGameFullyLocked(game: any): boolean {
+  return isPlayInGameLocked(game) || !!game.winner
+}
+
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth()
@@ -27,7 +41,11 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams
     const userIdParam = searchParams.get("userId") || user.id
-    const showLockedOnly = searchParams.get("lockedOnly") === "true"
+    const isViewingOtherUser = userIdParam !== user.id
+
+    // Security: When viewing another user's predictions, ALWAYS enforce locked-only
+    // regardless of what the client sends
+    const showLockedOnly = isViewingOtherUser || searchParams.get("lockedOnly") === "true"
 
     const query: any = { userId: new mongoose.Types.ObjectId(userIdParam) }
     const predictions = await Prediction.find(query).populate([
@@ -42,25 +60,25 @@ export async function GET(request: NextRequest) {
         return true
       }
 
-      // Other users' predictions only if locked
+      // Other users' predictions only if locked (by time OR winner)
       if (pred.seriesId) {
         const series = pred.seriesId as any
-        return isSeriesLocked(series)
+        return isSeriesFullyLocked(series)
       } else if (pred.playInGameId) {
         const game = pred.playInGameId as any
-        return isPlayInGameLocked(game)
+        return isPlayInGameFullyLocked(game)
       }
 
       return false
     })
 
-    // If lockedOnly is true, filter to only locked predictions
+    // If lockedOnly is true, filter to only locked predictions (by time OR winner)
     const result = showLockedOnly
       ? filtered.filter((pred) => {
           if (pred.seriesId) {
-            return isSeriesLocked(pred.seriesId as any)
+            return isSeriesFullyLocked(pred.seriesId as any)
           } else if (pred.playInGameId) {
-            return isPlayInGameLocked(pred.playInGameId as any)
+            return isPlayInGameFullyLocked(pred.playInGameId as any)
           }
           return false
         })

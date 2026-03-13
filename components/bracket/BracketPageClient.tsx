@@ -119,6 +119,7 @@ export function BracketPageClient() {
       <NBABracketView
         viewingUserId={viewingUserId || undefined}
         isViewingOtherUser={isViewingOtherUser || false}
+        viewingUserName={viewingUserName}
       />
     </div>
   )

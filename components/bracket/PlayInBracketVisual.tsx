@@ -12,6 +12,7 @@ interface PlayInBracketVisualProps {
   onGameClick?: (game: IPlayInGame | undefined) => void // Allow undefined for new games (admin only)
   isAdmin?: boolean
   isViewingOtherUser?: boolean
+  viewingUserName?: string
 }
 
 export function PlayInBracketVisual({
@@ -20,6 +21,7 @@ export function PlayInBracketVisual({
   onGameClick,
   isAdmin = false,
   isViewingOtherUser = false,
+  viewingUserName,
 }: PlayInBracketVisualProps) {
   // Helper function to get or create placeholder game
   const getPlayInGame = (
@@ -75,6 +77,7 @@ export function PlayInBracketVisual({
             onGameClick={onGameClick}
             isAdmin={isAdmin}
             isViewingOtherUser={isViewingOtherUser}
+            viewingUserName={viewingUserName}
           />
         </div>
 
@@ -89,6 +92,7 @@ export function PlayInBracketVisual({
             onGameClick={onGameClick}
             isAdmin={isAdmin}
             isViewingOtherUser={isViewingOtherUser}
+            viewingUserName={viewingUserName}
           />
         </div>
       </div>
@@ -102,6 +106,7 @@ function PlayInConferenceBracket({
   onGameClick,
   isAdmin,
   isViewingOtherUser,
+  viewingUserName,
 }: {
   games: {
     "7-8": IPlayInGame
@@ -112,6 +117,7 @@ function PlayInConferenceBracket({
   onGameClick?: (game: IPlayInGame | undefined) => void
   isAdmin: boolean
   isViewingOtherUser: boolean
+  viewingUserName?: string
 }) {
   return (
     <div className="relative space-y-6">
@@ -135,6 +141,7 @@ function PlayInConferenceBracket({
               onClick={() => onGameClick && games["7-8"] && onGameClick(games["7-8"])}
               isAdmin={isAdmin}
               isViewingOtherUser={isViewingOtherUser}
+              viewingUserName={viewingUserName}
             />
           </div>
           <div className="text-xs text-muted-foreground mt-2 text-center">
@@ -163,6 +170,7 @@ function PlayInConferenceBracket({
               onClick={() => onGameClick && games["9-10"] && onGameClick(games["9-10"])}
               isAdmin={isAdmin}
               isViewingOtherUser={isViewingOtherUser}
+              viewingUserName={viewingUserName}
             />
           </div>
           <div className="text-xs text-muted-foreground mt-2 text-center">
@@ -189,6 +197,7 @@ function PlayInConferenceBracket({
               onClick={() => onGameClick && games.final && onGameClick(games.final)}
               isAdmin={isAdmin}
               isViewingOtherUser={isViewingOtherUser}
+              viewingUserName={viewingUserName}
             />
           </div>
         <div className="text-xs text-muted-foreground mt-2 text-center">
@@ -205,12 +214,14 @@ function PlayInGameBox({
   onClick,
   isAdmin,
   isViewingOtherUser,
+  viewingUserName,
 }: {
   game: IPlayInGame
   prediction?: IPrediction
   onClick?: () => void
   isAdmin: boolean
   isViewingOtherUser: boolean
+  viewingUserName?: string
 }) {
   const isWinner1 = game.winner === game.team1
   const isWinner2 = game.winner === game.team2
@@ -353,7 +364,9 @@ function PlayInGameBox({
             <div className="text-xs text-center pt-1 border-t pb-2">
               {prediction ? (
                 <div className="text-muted-foreground">
-                  Your pick: <span className="font-semibold">{prediction.predictedWinner}</span>
+                  {isViewingOtherUser && viewingUserName 
+                    ? `${viewingUserName.split(' ')[0]}'s pick:`
+                    : "Your pick:"} <span className="font-semibold">{prediction.predictedWinner}</span>
                 </div>
               ) : (
                 <div className="text-muted-foreground italic">

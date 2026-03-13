@@ -49,6 +49,7 @@ export function PlayoffBracketVisual({
   onSeriesClick,
   isAdmin = false,
   isViewingOtherUser = false,
+  viewingUserName,
 }: PlayoffBracketVisualProps) {
   const [selectedSeries, setSelectedSeries] = useState<Series | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -234,6 +235,7 @@ export function PlayoffBracketVisual({
                     onClick={() => handleSeriesClick(matchup)}
                     isAdmin={isAdmin}
                     isViewingOtherUser={isViewingOtherUser}
+                    viewingUserName={viewingUserName}
                   />
                 </div>
               )
@@ -262,6 +264,7 @@ export function PlayoffBracketVisual({
                     onClick={() => handleSeriesClick(matchup)}
                     isAdmin={isAdmin}
                     isViewingOtherUser={isViewingOtherUser}
+                    viewingUserName={viewingUserName}
                   />
                 </div>
               )
@@ -288,6 +291,7 @@ export function PlayoffBracketVisual({
                 onClick={() => handleSeriesClick(finalWestConf)}
                 isAdmin={isAdmin}
                 isViewingOtherUser={isViewingOtherUser}
+                viewingUserName={viewingUserName}
               />
             </div>
           </div>
@@ -312,6 +316,7 @@ export function PlayoffBracketVisual({
                 onClick={() => handleSeriesClick(finalNBA)}
                 isAdmin={isAdmin}
                 isViewingOtherUser={isViewingOtherUser}
+                viewingUserName={viewingUserName}
               />
             </div>
           </div>
@@ -336,6 +341,7 @@ export function PlayoffBracketVisual({
                 onClick={() => handleSeriesClick(finalEastConf)}
                 isAdmin={isAdmin}
                 isViewingOtherUser={isViewingOtherUser}
+                viewingUserName={viewingUserName}
               />
             </div>
           </div>
@@ -362,6 +368,7 @@ export function PlayoffBracketVisual({
                     onClick={() => handleSeriesClick(matchup)}
                     isAdmin={isAdmin}
                     isViewingOtherUser={isViewingOtherUser}
+                    viewingUserName={viewingUserName}
                   />
                 </div>
               )
@@ -393,6 +400,7 @@ export function PlayoffBracketVisual({
                     onClick={() => handleSeriesClick(matchup)}
                     isAdmin={isAdmin}
                     isViewingOtherUser={isViewingOtherUser}
+                    viewingUserName={viewingUserName}
                   />
                 </div>
               )
@@ -437,12 +445,14 @@ function MatchupBox({
   onClick,
   isAdmin = false,
   isViewingOtherUser = false,
+  viewingUserName,
 }: {
   series: Series
   prediction?: IPrediction
   onClick?: () => void
   isAdmin?: boolean
   isViewingOtherUser?: boolean
+  viewingUserName?: string
 }) {
   const team1Wins = series.currentScore?.team1Wins || 0
   const team2Wins = series.currentScore?.team2Wins || 0
@@ -531,7 +541,9 @@ function MatchupBox({
       {prediction?.predictedScore && (
         <div className="text-center mt-1 flex items-center justify-center gap-1">
           <span className="text-[8px] md:text-[9px] text-muted-foreground font-medium">
-            Predicted: {prediction.predictedScore.team1Wins}-{prediction.predictedScore.team2Wins}
+            {isViewingOtherUser && viewingUserName 
+              ? `${viewingUserName.split(' ')[0]}'s prediction:`
+              : "Predicted:"} {prediction.predictedScore.team1Wins}-{prediction.predictedScore.team2Wins}
           </span>
           {showSmallLock && (
             <Lock className="h-3 w-3 text-muted-foreground" />
