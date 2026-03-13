@@ -39,6 +39,7 @@ interface PlayoffBracketVisualProps {
   onSeriesClick?: (series: Series) => void // For admin mode
   isAdmin?: boolean
   isViewingOtherUser?: boolean
+  viewingUserName?: string
 }
 
 
