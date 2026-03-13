@@ -100,7 +100,7 @@ export function PlayInManager({ seasonId }: PlayInManagerProps) {
                   <TeamDisplay teamName={g.team2} size="sm" />
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {g.gameType} - {formatToIST(g.startTime)} - {g.status}
+                  {g.gameType} - {formatToIST(g.startTime)}
                 </div>
                 {g.winner && (
                   <div className="text-sm font-medium flex items-center gap-2">
@@ -156,7 +156,6 @@ function PlayInForm({
       ? new Date(game.startTime).toISOString().slice(0, 16)
       : "",
     winner: game?.winner || "none",
-    status: game?.status || "upcoming",
   })
 
   const fetchTeams = useCallback(async () => {
@@ -195,7 +194,6 @@ function PlayInForm({
           ? new Date(game.startTime).toISOString().slice(0, 16)
           : "",
         winner: game.winner || "none",
-        status: game.status || "upcoming",
       })
     } else {
       setFormData({
@@ -204,7 +202,6 @@ function PlayInForm({
         team2: "none",
         startTime: "",
         winner: "none",
-        status: "upcoming",
       })
     }
   }, [game])
@@ -219,7 +216,6 @@ function PlayInForm({
       team2: formData.team2,
       startTime: new Date(formData.startTime).toISOString(),
       winner: formData.winner || undefined,
-      status: formData.status,
     }
 
     try {
@@ -354,23 +350,6 @@ function PlayInForm({
             </SelectContent>
           </Select>
         )}
-      </div>
-      <div>
-        <label className="text-sm font-medium">Status</label>
-        <Select
-          value={formData.status}
-          onValueChange={(value) =>
-            setFormData({ ...formData, status: value as any })
-          }
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="upcoming">Upcoming</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
       <div className="flex gap-2">
         <Button type="submit">{game ? "Update" : "Create"}</Button>
