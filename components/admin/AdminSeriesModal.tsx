@@ -142,7 +142,7 @@ export function AdminSeriesModal({
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            Edit Series - {series.round.charAt(0).toUpperCase() + series.round.slice(1)} Round
+            Edit Series - {series.round ? series.round.charAt(0).toUpperCase() + series.round.slice(1) : "Unknown"} Round
             {series.conference && ` - ${series.conference.toUpperCase()}`}
           </DialogTitle>
           <DialogDescription>
@@ -155,7 +155,7 @@ export function AdminSeriesModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Round</Label>
-              <Input value={series.round} disabled />
+              <Input value={series.round || "Unknown"} disabled />
             </div>
             <div>
               <Label>Conference</Label>
