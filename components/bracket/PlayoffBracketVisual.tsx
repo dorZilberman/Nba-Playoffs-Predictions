@@ -216,9 +216,10 @@ export function PlayoffBracketVisual({
             </div>
             {firstWest.map((matchup, idx) => {
               const prediction = predictions.find((p) => {
+                if (!p.seriesId) return false
                 const seriesId = typeof p.seriesId === 'object' && p.seriesId !== null
-                  ? (p.seriesId as any)._id?.toString()
-                  : p.seriesId?.toString()
+                  ? (p.seriesId as any)._id?.toString() || (p.seriesId as any).toString()
+                  : String(p.seriesId)
                 return seriesId === matchup._id?.toString()
               })
               return (
@@ -243,9 +244,10 @@ export function PlayoffBracketVisual({
           <div className="space-y-16 md:space-y-24 flex flex-col justify-center">
             {secondWest.map((matchup, idx) => {
               const prediction = predictions.find((p) => {
+                if (!p.seriesId) return false
                 const seriesId = typeof p.seriesId === 'object' && p.seriesId !== null
-                  ? (p.seriesId as any)._id?.toString()
-                  : p.seriesId?.toString()
+                  ? (p.seriesId as any)._id?.toString() || (p.seriesId as any).toString()
+                  : String(p.seriesId)
                 return seriesId === matchup._id?.toString()
               })
               return (
@@ -277,9 +279,10 @@ export function PlayoffBracketVisual({
               <MatchupBox
                 series={finalWestConf}
                 prediction={predictions.find((p) => {
+                  if (!p.seriesId) return false
                   const seriesId = typeof p.seriesId === 'object' && p.seriesId !== null
-                    ? (p.seriesId as any)._id?.toString()
-                    : p.seriesId?.toString()
+                    ? (p.seriesId as any)._id?.toString() || (p.seriesId as any).toString()
+                    : String(p.seriesId)
                   return seriesId === finalWestConf._id?.toString()
                 })}
                 onClick={() => handleSeriesClick(finalWestConf)}
@@ -300,9 +303,10 @@ export function PlayoffBracketVisual({
               <MatchupBox
                 series={finalNBA}
                 prediction={predictions.find((p) => {
+                  if (!p.seriesId) return false
                   const seriesId = typeof p.seriesId === 'object' && p.seriesId !== null
-                    ? (p.seriesId as any)._id?.toString()
-                    : p.seriesId?.toString()
+                    ? (p.seriesId as any)._id?.toString() || (p.seriesId as any).toString()
+                    : String(p.seriesId)
                   return seriesId === finalNBA._id?.toString()
                 })}
                 onClick={() => handleSeriesClick(finalNBA)}
@@ -323,9 +327,10 @@ export function PlayoffBracketVisual({
               <MatchupBox
                 series={finalEastConf}
                 prediction={predictions.find((p) => {
+                  if (!p.seriesId) return false
                   const seriesId = typeof p.seriesId === 'object' && p.seriesId !== null
-                    ? (p.seriesId as any)._id?.toString()
-                    : p.seriesId?.toString()
+                    ? (p.seriesId as any)._id?.toString() || (p.seriesId as any).toString()
+                    : String(p.seriesId)
                   return seriesId === finalEastConf._id?.toString()
                 })}
                 onClick={() => handleSeriesClick(finalEastConf)}
@@ -339,9 +344,10 @@ export function PlayoffBracketVisual({
           <div className="space-y-16 md:space-y-24 flex flex-col justify-center">
             {secondEast.map((matchup, idx) => {
               const prediction = predictions.find((p) => {
+                if (!p.seriesId) return false
                 const seriesId = typeof p.seriesId === 'object' && p.seriesId !== null
-                  ? (p.seriesId as any)._id?.toString()
-                  : p.seriesId?.toString()
+                  ? (p.seriesId as any)._id?.toString() || (p.seriesId as any).toString()
+                  : String(p.seriesId)
                 return seriesId === matchup._id?.toString()
               })
               return (
@@ -369,9 +375,10 @@ export function PlayoffBracketVisual({
             </div>
             {firstEast.map((matchup, idx) => {
               const prediction = predictions.find((p) => {
+                if (!p.seriesId) return false
                 const seriesId = typeof p.seriesId === 'object' && p.seriesId !== null
-                  ? (p.seriesId as any)._id?.toString()
-                  : p.seriesId?.toString()
+                  ? (p.seriesId as any)._id?.toString() || (p.seriesId as any).toString()
+                  : String(p.seriesId)
                 return seriesId === matchup._id?.toString()
               })
               return (
@@ -403,9 +410,10 @@ export function PlayoffBracketVisual({
               updatedAt: (selectedSeries as any).updatedAt || new Date(),
             } as ISeries}
             prediction={predictions.find((p) => {
+              if (!p.seriesId) return false
               const seriesId = typeof p.seriesId === 'object' && p.seriesId !== null
-                ? (p.seriesId as any)._id?.toString()
-                : p.seriesId?.toString()
+                ? (p.seriesId as any)._id?.toString() || (p.seriesId as any).toString()
+                : String(p.seriesId)
               return seriesId === selectedSeries._id?.toString()
             })}
             isOpen={isModalOpen}
