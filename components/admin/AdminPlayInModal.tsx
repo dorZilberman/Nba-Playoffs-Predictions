@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select"
 import { formatToIST } from "@/app/lib/utils/timezone"
 import { TeamDisplay } from "@/components/ui/TeamDisplay"
-import type { IPlayInGame } from "@/app/lib/models/PlayInGame"
+import type { IPlayInGame, PlayInGameType } from "@/app/lib/models/PlayInGame"
 import type { ITeam } from "@/app/lib/models/Team"
 
 interface AdminPlayInModalProps {
@@ -137,7 +137,7 @@ export function AdminPlayInModal({
             <Label htmlFor="gameType">Game Type</Label>
             <Select
               value={formData.gameType}
-              onValueChange={(value) => setFormData({ ...formData, gameType: value })}
+              onValueChange={(value) => setFormData({ ...formData, gameType: value as PlayInGameType })}
             >
               <SelectTrigger>
                 <SelectValue />
