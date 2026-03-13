@@ -1,5 +1,8 @@
 import { RoundType } from "../models/Series"
 
+// Re-export RoundType for convenience
+export type { RoundType }
+
 export interface ScoreResult {
   points: number
   breakdown?: {
