@@ -24,6 +24,7 @@ export function Nav() {
 
   const navItems = [
     { href: "/bracket", label: "Bracket" },
+    { href: "/analytics", label: "Analytics" },
     { href: "/standings", label: "Standings" },
     { href: "/rules", label: "Rules" },
   ]
