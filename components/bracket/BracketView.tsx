@@ -71,11 +71,23 @@ export function BracketView() {
   const handlePredictionChange = async (prediction: Partial<IPrediction>) => {
     try {
       const existingPrediction = predictions.find(
-        (p) =>
-          (prediction.seriesId &&
-            p.seriesId?.toString() === prediction.seriesId) ||
-          (prediction.playInGameId &&
-            p.playInGameId?.toString() === prediction.playInGameId)
+        (p) => {
+          const predictionSeriesId = prediction.seriesId
+            ? (typeof prediction.seriesId === 'object' && prediction.seriesId !== null
+                ? (prediction.seriesId as any)._id?.toString() || (prediction.seriesId as any).toString()
+                : String(prediction.seriesId))
+            : null
+          const predictionPlayInGameId = prediction.playInGameId
+            ? (typeof prediction.playInGameId === 'object' && prediction.playInGameId !== null
+                ? (prediction.playInGameId as any)._id?.toString() || (prediction.playInGameId as any).toString()
+                : String(prediction.playInGameId))
+            : null
+          
+          return (
+            (predictionSeriesId && p.seriesId?.toString() === predictionSeriesId) ||
+            (predictionPlayInGameId && p.playInGameId?.toString() === predictionPlayInGameId)
+          )
+        }
       )
 
       const url = existingPrediction
