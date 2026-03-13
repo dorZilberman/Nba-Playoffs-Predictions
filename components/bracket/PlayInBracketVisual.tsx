@@ -104,9 +104,9 @@ function PlayInConferenceBracket({
   isViewingOtherUser,
 }: {
   games: {
-    "7-8"?: IPlayInGame
-    "9-10"?: IPlayInGame
-    final?: IPlayInGame
+    "7-8": IPlayInGame
+    "9-10": IPlayInGame
+    final: IPlayInGame
   }
   predictions: IPrediction[]
   onGameClick?: (game: IPlayInGame | undefined) => void
