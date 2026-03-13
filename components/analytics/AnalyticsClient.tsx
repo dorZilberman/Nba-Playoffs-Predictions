@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { TeamDisplay } from "@/components/ui/TeamDisplay"
+import { Tooltip } from "@/components/ui/tooltip"
 import type { GameAnalytics } from "@/app/api/analytics/route"
 import { Check } from "lucide-react"
 
@@ -108,6 +109,9 @@ function GameAnalyticsCard({ game }: { game: GameAnalytics }) {
               <span className="text-xs font-normal text-muted-foreground flex items-center gap-1">
                 <Check className="h-3 w-3" />
                 Winner: {game.winner}
+                {game.gameType === "series" && game.actualResult && (
+                  <span className="ml-1">({game.actualResult})</span>
+                )}
               </span>
             )}
           </div>
@@ -144,6 +148,54 @@ function GameAnalyticsCard({ game }: { game: GameAnalytics }) {
                 style={{ width: `${game.team1Percentage}%` }}
               />
             </div>
+            {/* Score breakdown (for playoff series only) */}
+            {game.gameType === "series" && game.team1ScoreBreakdown && (
+              <div className="text-xs text-muted-foreground pl-2 space-y-1">
+                <div className="font-medium">Score predictions:</div>
+                <div className="flex justify-between w-full">
+                  {(["4-0", "4-1", "4-2", "4-3"] as const).map((score) => {
+                    const count = game.team1ScoreBreakdown![score] || 0
+                    const details = game.team1ScoreDetails?.[score] || []
+                    const points = game.team1ScorePoints?.[score]
+                    
+                    const tooltipContent = (
+                      <div className="space-y-2">
+                        {points !== null && points !== undefined && (
+                          <div className="whitespace-nowrap">
+                            <span className="font-semibold">Worth: </span>
+                            <span className="text-xs">
+                              {points} point{points !== 1 ? "s" : ""}
+                            </span>
+                          </div>
+                        )}
+                        {details.length > 0 && (
+                          <div>
+                            <div className="font-semibold mb-1">Selected by:</div>
+                            {details.map((detail) => (
+                              <div key={detail.userId} className="text-xs">
+                                {detail.userName}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {details.length === 0 && (
+                          <div className="text-xs">No predictions</div>
+                        )}
+                      </div>
+                    )
+                    
+                    return (
+                      <Tooltip key={score} content={tooltipContent}>
+                        <div className="flex items-center justify-center gap-1 px-3 py-1.5 rounded bg-muted cursor-help">
+                          <span className="font-medium">{score}</span>
+                          <span className="text-muted-foreground">({count})</span>
+                        </div>
+                      </Tooltip>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
             {/* Users list */}
             {game.team1Users.length > 0 && (
               <div className="text-xs text-muted-foreground pl-2">
@@ -187,6 +239,54 @@ function GameAnalyticsCard({ game }: { game: GameAnalytics }) {
                 style={{ width: `${game.team2Percentage}%` }}
               />
             </div>
+            {/* Score breakdown (for playoff series only) */}
+            {game.gameType === "series" && game.team2ScoreBreakdown && (
+              <div className="text-xs text-muted-foreground pl-2 space-y-1">
+                <div className="font-medium">Score predictions:</div>
+                <div className="flex justify-between w-full">
+                  {(["4-0", "4-1", "4-2", "4-3"] as const).map((score) => {
+                    const count = game.team2ScoreBreakdown![score] || 0
+                    const details = game.team2ScoreDetails?.[score] || []
+                    const points = game.team2ScorePoints?.[score]
+                    
+                    const tooltipContent = (
+                      <div className="space-y-2">
+                        {points !== null && points !== undefined && (
+                          <div className="whitespace-nowrap">
+                            <span className="font-semibold">Worth: </span>
+                            <span className="text-xs">
+                              {points} point{points !== 1 ? "s" : ""}
+                            </span>
+                          </div>
+                        )}
+                        {details.length > 0 && (
+                          <div>
+                            <div className="font-semibold mb-1">Selected by:</div>
+                            {details.map((detail) => (
+                              <div key={detail.userId} className="text-xs">
+                                {detail.userName}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {details.length === 0 && (
+                          <div className="text-xs">No predictions</div>
+                        )}
+                      </div>
+                    )
+                    
+                    return (
+                      <Tooltip key={score} content={tooltipContent}>
+                        <div className="flex items-center justify-center gap-1 px-3 py-1.5 rounded bg-muted cursor-help">
+                          <span className="font-medium">{score}</span>
+                          <span className="text-muted-foreground">({count})</span>
+                        </div>
+                      </Tooltip>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
             {/* Users list */}
             {game.team2Users.length > 0 && (
               <div className="text-xs text-muted-foreground pl-2">

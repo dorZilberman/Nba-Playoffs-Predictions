@@ -5,6 +5,8 @@ import Prediction from "@/app/lib/models/Prediction"
 import Series from "@/app/lib/models/Series"
 import PlayInGame from "@/app/lib/models/PlayInGame"
 import User from "@/app/lib/models/User"
+import { calculateSeriesScore } from "@/app/lib/scoring/calculator"
+import { ROUND_BASE_VALUES } from "@/app/lib/scoring/types"
 import mongoose from "mongoose"
 
 export interface GameAnalytics {
@@ -25,6 +27,47 @@ export interface GameAnalytics {
   team1Users: Array<{ id: string; name: string }>
   team2Users: Array<{ id: string; name: string }>
   totalPredictions: number
+  // Score breakdowns for playoff series only
+  team1ScoreBreakdown?: {
+    "4-0": number
+    "4-1": number
+    "4-2": number
+    "4-3": number
+  }
+  team2ScoreBreakdown?: {
+    "4-0": number
+    "4-1": number
+    "4-2": number
+    "4-3": number
+  }
+  // Detailed score info with users
+  team1ScoreDetails?: {
+    "4-0": Array<{ userId: string; userName: string }>
+    "4-1": Array<{ userId: string; userName: string }>
+    "4-2": Array<{ userId: string; userName: string }>
+    "4-3": Array<{ userId: string; userName: string }>
+  }
+  team2ScoreDetails?: {
+    "4-0": Array<{ userId: string; userName: string }>
+    "4-1": Array<{ userId: string; userName: string }>
+    "4-2": Array<{ userId: string; userName: string }>
+    "4-3": Array<{ userId: string; userName: string }>
+  }
+  // Points each score would give (if series is completed)
+  team1ScorePoints?: {
+    "4-0": number | null
+    "4-1": number | null
+    "4-2": number | null
+    "4-3": number | null
+  }
+  team2ScorePoints?: {
+    "4-0": number | null
+    "4-1": number | null
+    "4-2": number | null
+    "4-3": number | null
+  }
+  // Actual result for playoff series (e.g., "4-2")
+  actualResult?: string
 }
 
 export async function GET(request: NextRequest) {
@@ -123,6 +166,156 @@ export async function GET(request: NextRequest) {
         const team1Count = team1Predictions.length
         const team2Count = team2Predictions.length
 
+        // Calculate actual result if winner is set
+        let actualResult: string | undefined
+        if (s.winner && s.currentScore) {
+          if (s.winner === s.team1) {
+            actualResult = `${s.currentScore.team1Wins}-${s.currentScore.team2Wins}`
+          } else if (s.winner === s.team2) {
+            actualResult = `${s.currentScore.team2Wins}-${s.currentScore.team1Wins}`
+          }
+        }
+
+        // Calculate score breakdowns for each team
+        const team1ScoreBreakdown = {
+          "4-0": 0,
+          "4-1": 0,
+          "4-2": 0,
+          "4-3": 0,
+        }
+        const team2ScoreBreakdown = {
+          "4-0": 0,
+          "4-1": 0,
+          "4-2": 0,
+          "4-3": 0,
+        }
+
+        // Detailed score info with users
+        const team1ScoreDetails: {
+          "4-0": Array<{ userId: string; userName: string }>
+          "4-1": Array<{ userId: string; userName: string }>
+          "4-2": Array<{ userId: string; userName: string }>
+          "4-3": Array<{ userId: string; userName: string }>
+        } = {
+          "4-0": [],
+          "4-1": [],
+          "4-2": [],
+          "4-3": [],
+        }
+        const team2ScoreDetails: {
+          "4-0": Array<{ userId: string; userName: string }>
+          "4-1": Array<{ userId: string; userName: string }>
+          "4-2": Array<{ userId: string; userName: string }>
+          "4-3": Array<{ userId: string; userName: string }>
+        } = {
+          "4-0": [],
+          "4-1": [],
+          "4-2": [],
+          "4-3": [],
+        }
+
+        // Calculate points for each score (if series is completed)
+        const team1ScorePoints: {
+          "4-0": number | null
+          "4-1": number | null
+          "4-2": number | null
+          "4-3": number | null
+        } = {
+          "4-0": null,
+          "4-1": null,
+          "4-2": null,
+          "4-3": null,
+        }
+        const team2ScorePoints: {
+          "4-0": number | null
+          "4-1": number | null
+          "4-2": number | null
+          "4-3": number | null
+        } = {
+          "4-0": null,
+          "4-1": null,
+          "4-2": null,
+          "4-3": null,
+        }
+
+        if (s.winner && s.currentScore) {
+          const baseX = ROUND_BASE_VALUES[s.round]
+          const actual = s.currentScore
+          const actualWinner = s.winner
+
+          // Calculate points for each team1 score
+          for (const loserWins of [0, 1, 2, 3] as const) {
+            const scoreKey = `4-${loserWins}` as "4-0" | "4-1" | "4-2" | "4-3"
+            const predictedScore = { team1Wins: 4, team2Wins: loserWins }
+            
+            // Create a mock prediction for calculation
+            const mockPred: any = {
+              predictedWinner: s.team1,
+              predictedScore,
+            }
+            
+            const scoreResult = calculateSeriesScore(mockPred, s, s.round)
+            team1ScorePoints[scoreKey] = scoreResult.points
+          }
+
+          // Calculate points for each team2 score
+          for (const loserWins of [0, 1, 2, 3] as const) {
+            const scoreKey = `4-${loserWins}` as "4-0" | "4-1" | "4-2" | "4-3"
+            const predictedScore = { team1Wins: loserWins, team2Wins: 4 }
+            
+            // Create a mock prediction for calculation
+            const mockPred: any = {
+              predictedWinner: s.team2,
+              predictedScore,
+            }
+            
+            const scoreResult = calculateSeriesScore(mockPred, s, s.round)
+            team2ScorePoints[scoreKey] = scoreResult.points
+          }
+        }
+
+        // Process score predictions for team1 wins
+        for (const pred of team1Predictions) {
+          if (pred.predictedScore) {
+            const { team1Wins, team2Wins } = pred.predictedScore
+            if (team1Wins === 4) {
+              const scoreKey = `4-${team2Wins}` as "4-0" | "4-1" | "4-2" | "4-3"
+              if (scoreKey in team1ScoreBreakdown) {
+                team1ScoreBreakdown[scoreKey]++
+                
+                const userId = (pred.userId as any)._id?.toString() || (pred.userId as any).toString()
+                const userName = (pred.userId as any).name || "Unknown"
+                
+                team1ScoreDetails[scoreKey].push({
+                  userId,
+                  userName,
+                })
+              }
+            }
+          }
+        }
+
+        // Process score predictions for team2 wins
+        for (const pred of team2Predictions) {
+          if (pred.predictedScore) {
+            const { team1Wins, team2Wins } = pred.predictedScore
+            if (team2Wins === 4) {
+              const scoreKey = `4-${team1Wins}` as "4-0" | "4-1" | "4-2" | "4-3"
+              if (scoreKey in team2ScoreBreakdown) {
+                team2ScoreBreakdown[scoreKey]++
+                
+                const userId = (pred.userId as any)._id?.toString() || (pred.userId as any).toString()
+                const userName = (pred.userId as any).name || "Unknown"
+                
+                team2ScoreDetails[scoreKey].push({
+                  userId,
+                  userName,
+                })
+              }
+            }
+          }
+        }
+
         analytics.push({
           gameId: s._id.toString(),
           gameType: "series",
@@ -146,6 +339,13 @@ export async function GET(request: NextRequest) {
             name: (p.userId as any).name || "Unknown",
           })),
           totalPredictions: total,
+          team1ScoreBreakdown,
+          team2ScoreBreakdown,
+          team1ScoreDetails,
+          team2ScoreDetails,
+          team1ScorePoints,
+          team2ScorePoints,
+          actualResult,
         })
       }
     }
