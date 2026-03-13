@@ -61,17 +61,14 @@ export function AdminPlayInModal({
   })
   const [saving, setSaving] = useState(false)
 
-  // Determine conference from gameType
-  const getConference = () => {
-    if (formData.gameType.startsWith("east")) return "east"
-    if (formData.gameType.startsWith("west")) return "west"
-    return null
-  }
-
   const fetchTeams = useCallback(async () => {
     setLoadingTeams(true)
     try {
-      const conference = getConference()
+      // Determine conference from gameType
+      let conference: string | null = null
+      if (formData.gameType.startsWith("east")) conference = "east"
+      else if (formData.gameType.startsWith("west")) conference = "west"
+      
       const url = conference ? `/api/teams?conference=${conference}` : "/api/teams"
       const res = await fetch(url)
       if (res.ok) {

@@ -64,18 +64,15 @@ export function AdminSeriesModal({
   })
   const [saving, setSaving] = useState(false)
 
-  // Determine which conference teams to show
-  const getConferenceForTeams = () => {
-    if (series.round === "finals") {
-      return null // Show all teams for finals
-    }
-    return series.conference || null
-  }
-
   const fetchTeams = useCallback(async () => {
     setLoadingTeams(true)
     try {
-      const conference = getConferenceForTeams()
+      // Determine which conference teams to show
+      let conference: string | null = null
+      if (series.round !== "finals") {
+        conference = series.conference || null
+      }
+      
       const url = conference
         ? `/api/teams?conference=${conference}`
         : "/api/teams"
