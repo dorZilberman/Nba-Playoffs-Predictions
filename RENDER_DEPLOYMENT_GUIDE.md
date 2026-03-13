@@ -116,6 +116,8 @@ NEXTAUTH_URL
 Your Render app URL (e.g., `https://nba-playoffs-predictions.onrender.com`)
 **Important**: Update this after first deployment when you know your URL!
 
+**Note**: The app is configured with `trustHost: true` in the NextAuth config, which allows it to work on Render without additional host configuration.
+
 ```
 NEXTAUTH_SECRET
 ```
