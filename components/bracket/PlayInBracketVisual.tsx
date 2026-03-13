@@ -126,10 +126,11 @@ function PlayInConferenceBracket({
             <PlayInGameBox
               game={games["7-8"]}
               prediction={predictions.find((p) => {
+                if (!p.playInGameId) return false
                 const gameId = typeof p.playInGameId === 'object' && p.playInGameId !== null
-                  ? (p.playInGameId as any)._id?.toString()
-                  : p.playInGameId?.toString()
-                return gameId === games["7-8"]?._id?.toString()
+                  ? (p.playInGameId as any)._id?.toString() || (p.playInGameId as any).toString()
+                  : String(p.playInGameId)
+                return gameId === games["7-8"]._id?.toString()
               })}
               onClick={() => onGameClick && games["7-8"] && onGameClick(games["7-8"])}
               isAdmin={isAdmin}
@@ -153,10 +154,11 @@ function PlayInConferenceBracket({
             <PlayInGameBox
               game={games["9-10"]}
               prediction={predictions.find((p) => {
+                if (!p.playInGameId) return false
                 const gameId = typeof p.playInGameId === 'object' && p.playInGameId !== null
-                  ? (p.playInGameId as any)._id?.toString()
-                  : p.playInGameId?.toString()
-                return gameId === games["9-10"]?._id?.toString()
+                  ? (p.playInGameId as any)._id?.toString() || (p.playInGameId as any).toString()
+                  : String(p.playInGameId)
+                return gameId === games["9-10"]._id?.toString()
               })}
               onClick={() => onGameClick && games["9-10"] && onGameClick(games["9-10"])}
               isAdmin={isAdmin}
@@ -178,10 +180,11 @@ function PlayInConferenceBracket({
             <PlayInGameBox
               game={games.final}
               prediction={predictions.find((p) => {
+                if (!p.playInGameId) return false
                 const gameId = typeof p.playInGameId === 'object' && p.playInGameId !== null
-                  ? (p.playInGameId as any)._id?.toString()
-                  : p.playInGameId?.toString()
-                return gameId === games.final?._id?.toString()
+                  ? (p.playInGameId as any)._id?.toString() || (p.playInGameId as any).toString()
+                  : String(p.playInGameId)
+                return gameId === games.final._id?.toString()
               })}
               onClick={() => onGameClick && games.final && onGameClick(games.final)}
               isAdmin={isAdmin}
