@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   Dialog,
   DialogContent,
@@ -72,13 +72,7 @@ export function AdminSeriesModal({
     return series.conference || null
   }
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchTeams()
-    }
-  }, [isOpen, series.conference, series.round])
-
-  const fetchTeams = async () => {
+  const fetchTeams = useCallback(async () => {
     setLoadingTeams(true)
     try {
       const conference = getConferenceForTeams()
@@ -95,7 +89,13 @@ export function AdminSeriesModal({
     } finally {
       setLoadingTeams(false)
     }
-  }
+  }, [series.conference, series.round])
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchTeams()
+    }
+  }, [isOpen, fetchTeams])
 
   useEffect(() => {
     if (isOpen) {

@@ -106,7 +106,7 @@ export default async function RulesPage() {
                 </p>
                 <p className="text-sm mt-2">
                   Where <strong>y</strong> = absolute difference in the losing
-                  team's win count between your prediction and the actual result.
+                  team&apos;s win count between your prediction and the actual result.
                 </p>
                 <div className="text-xs text-muted-foreground mt-2 space-y-1">
                   <p>Examples:</p>
@@ -217,7 +217,7 @@ export default async function RulesPage() {
             locked or unlocked.
           </p>
           <p className="text-sm">
-            <strong>Other users' predictions:</strong> Only visible after they
+            <strong>Other users&apos; predictions:</strong> Only visible after they
             are locked. Unlocked predictions of other users are kept private.
           </p>
           <p className="text-sm text-muted-foreground">

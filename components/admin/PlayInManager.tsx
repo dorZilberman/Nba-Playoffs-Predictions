@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -166,9 +166,26 @@ function PlayInForm({
     return null
   }
 
+  const fetchTeams = useCallback(async () => {
+    setLoadingTeams(true)
+    try {
+      const conference = getConference()
+      const url = conference ? `/api/teams?conference=${conference}` : "/api/teams"
+      const res = await fetch(url)
+      if (res.ok) {
+        const data = await res.json()
+        setTeams(Array.isArray(data) ? data : [])
+      }
+    } catch (error) {
+      console.error("Error fetching teams:", error)
+    } finally {
+      setLoadingTeams(false)
+    }
+  }, [formData.gameType])
+
   useEffect(() => {
     fetchTeams()
-  }, [formData.gameType])
+  }, [fetchTeams])
 
   // Reset form when game changes
   useEffect(() => {
@@ -194,23 +211,6 @@ function PlayInForm({
       })
     }
   }, [game])
-
-  const fetchTeams = async () => {
-    setLoadingTeams(true)
-    try {
-      const conference = getConference()
-      const url = conference ? `/api/teams?conference=${conference}` : "/api/teams"
-      const res = await fetch(url)
-      if (res.ok) {
-        const data = await res.json()
-        setTeams(Array.isArray(data) ? data : [])
-      }
-    } catch (error) {
-      console.error("Error fetching teams:", error)
-    } finally {
-      setLoadingTeams(false)
-    }
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

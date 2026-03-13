@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   Dialog,
   DialogContent,
@@ -68,27 +68,7 @@ export function AdminPlayInModal({
     return null
   }
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchTeams()
-    }
-  }, [isOpen, formData.gameType])
-
-  useEffect(() => {
-    if (isOpen) {
-      setFormData({
-        gameType: (game as IPlayInGame)?.gameType || "east-7-8",
-        team1: (game as IPlayInGame)?.team1 || "none",
-        team2: (game as IPlayInGame)?.team2 || "none",
-        startTime: (game as IPlayInGame)?.startTime
-          ? utcToLocalDateTime((game as IPlayInGame).startTime)
-          : "",
-        winner: (game as IPlayInGame)?.winner || "none",
-      })
-    }
-  }, [isOpen, game])
-
-  const fetchTeams = async () => {
+  const fetchTeams = useCallback(async () => {
     setLoadingTeams(true)
     try {
       const conference = getConference()
@@ -103,7 +83,27 @@ export function AdminPlayInModal({
     } finally {
       setLoadingTeams(false)
     }
-  }
+  }, [formData.gameType])
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchTeams()
+    }
+  }, [isOpen, fetchTeams])
+
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        gameType: (game as IPlayInGame)?.gameType || "east-7-8",
+        team1: (game as IPlayInGame)?.team1 || "none",
+        team2: (game as IPlayInGame)?.team2 || "none",
+        startTime: (game as IPlayInGame)?.startTime
+          ? utcToLocalDateTime((game as IPlayInGame).startTime)
+          : "",
+        winner: (game as IPlayInGame)?.winner || "none",
+      })
+    }
+  }, [isOpen, game])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
