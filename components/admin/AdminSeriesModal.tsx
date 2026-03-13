@@ -123,7 +123,7 @@ export function AdminSeriesModal({
         team2: formData.team2,
         team1Seed: formData.team1Seed,
         team2Seed: formData.team2Seed,
-        startTime: new Date(formData.startTime).toISOString(),
+        startTime: new Date(formData.startTime),
         currentScore: {
           team1Wins: formData.team1Wins,
           team2Wins: formData.team2Wins,

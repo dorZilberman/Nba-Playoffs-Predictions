@@ -111,7 +111,7 @@ export function AdminPlayInModal({
         gameType: formData.gameType,
         team1: formData.team1 === "none" ? "" : formData.team1,
         team2: formData.team2 === "none" ? "" : formData.team2,
-        startTime: new Date(formData.startTime).toISOString(),
+        startTime: new Date(formData.startTime),
         winner: formData.winner === "none" ? undefined : formData.winner,
       })
     } catch (error) {
