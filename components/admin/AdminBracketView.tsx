@@ -50,7 +50,8 @@ export function AdminBracketView() {
     setIsSeriesModalOpen(true)
   }
 
-  const handlePlayInClick = (game: IPlayInGame) => {
+  const handlePlayInClick = (game: IPlayInGame | undefined) => {
+    if (!game) return
     console.log("Admin clicked Play-In game:", game)
     setSelectedPlayIn(game)
     setIsPlayInModalOpen(true)
