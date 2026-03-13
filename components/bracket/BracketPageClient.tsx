@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { NBABracketView } from "./NBABracketView"
@@ -34,11 +34,7 @@ export function BracketPageClient() {
     }
   }, [searchParams, session])
 
-  useEffect(() => {
-    fetchStandings()
-  }, [])
-
-  const fetchStandings = async () => {
+  const fetchStandings = useCallback(async () => {
     try {
       const res = await fetch("/api/standings")
       if (res.ok) {
@@ -50,7 +46,11 @@ export function BracketPageClient() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchStandings()
+  }, [fetchStandings])
 
   const handleUserChange = (userId: string) => {
     if (userId === session?.user?.id) {
@@ -109,7 +109,7 @@ export function BracketPageClient() {
           </div>
           {isViewingOtherUser && (
             <p className="text-sm text-muted-foreground mt-2">
-              Viewing {viewingUserName}'s locked predictions only
+              Viewing {viewingUserName}&apos;s locked predictions only
             </p>
           )}
         </CardContent>

@@ -3,7 +3,7 @@
 import { PlayoffBracket } from "./PlayoffBracket"
 import { PlayInBracketVisual } from "./PlayInBracketVisual"
 import { PlayInPredictionModal } from "./PlayInPredictionModal"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import type { ISeries } from "@/app/lib/models/Series"
 import type { IPlayInGame } from "@/app/lib/models/PlayInGame"
 import type { IPrediction } from "@/app/lib/models/Prediction"
@@ -24,11 +24,7 @@ export function NBABracketView({
   const [isPlayInModalOpen, setIsPlayInModalOpen] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchData()
-  }, [viewingUserId])
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       // Build predictions URL with userId and lockedOnly params
       let predictionsUrl = "/api/predictions"
@@ -64,7 +60,11 @@ export function NBABracketView({
     } finally {
       setLoading(false)
     }
-  }
+  }, [viewingUserId, isViewingOtherUser])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   const handlePredictionSave = async (prediction: {
     seriesId: string
