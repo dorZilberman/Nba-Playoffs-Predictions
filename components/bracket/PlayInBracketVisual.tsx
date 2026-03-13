@@ -35,11 +35,12 @@ export function PlayInBracketVisual({
     
     return {
       _id: `placeholder-${gameType}`,
+      seasonId: {} as any, // Placeholder seasonId
       gameType,
       team1: "TBD",
       team2: "TBD",
       startTime: pastDate,
-      status: "upcoming",
+      createdAt: new Date(),
     } as IPlayInGame
   }
 
