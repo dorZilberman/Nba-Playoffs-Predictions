@@ -1,26 +1,17 @@
 import { NextResponse } from "next/server"
-import dbConnect, { initDatabaseConnection } from "@/app/lib/db"
 
+/**
+ * Health check endpoint to keep the Render service awake
+ * This endpoint can be pinged by external services (cron jobs, uptime monitors)
+ * to prevent the service from going to sleep
+ */
 export async function GET() {
-  // Trigger startup check if not done yet
-  await initDatabaseConnection()
-  
-  try {
-    await dbConnect()
-    return NextResponse.json({
-      status: "healthy",
-      database: "connected",
+  return NextResponse.json(
+    {
+      status: "ok",
       timestamp: new Date().toISOString(),
-    })
-  } catch (error: any) {
-    return NextResponse.json(
-      {
-        status: "unhealthy",
-        database: "disconnected",
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      },
-      { status: 503 }
-    )
-  }
+      service: "nba-playoffs-predictions",
+    },
+    { status: 200 }
+  )
 }

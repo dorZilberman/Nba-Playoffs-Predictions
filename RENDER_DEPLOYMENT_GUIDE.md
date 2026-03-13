@@ -256,6 +256,31 @@ NEXTAUTH_URL=https://your-app.onrender.com
 
 To keep it always-on, consider the **Starter Plan ($7/month)**.
 
+### Keeping Your Service Awake (Free Tier)
+
+The app includes a health check endpoint at `/api/health` that you can ping to prevent the service from sleeping.
+
+**Option 1: Use a Free Cron Job Service (Recommended)**
+
+1. Go to [cron-job.org](https://cron-job.org) (free) or [UptimeRobot](https://uptimerobot.com) (free)
+2. Create an account
+3. Add a new cron job/monitor:
+   - **URL**: `https://your-app-name.onrender.com/api/health`
+   - **Interval**: Every 5 minutes (or 10 minutes to be safe)
+   - **Method**: GET
+4. Save and activate
+
+**Option 2: Use Render's Health Check (if available)**
+
+1. In Render dashboard → Your Service → Settings
+2. Enable "Health Check Path" if available
+3. Set path to: `/api/health`
+4. Set interval to 5 minutes
+
+**Option 3: Upgrade to Starter Plan ($7/month)**
+
+The Starter Plan keeps your service always-on without needing health checks.
+
 ---
 
 ## Next Steps
