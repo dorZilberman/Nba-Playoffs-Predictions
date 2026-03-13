@@ -97,7 +97,7 @@ export function SeriesManager({ seasonId }: SeriesManagerProps) {
                 </div>
                 <div className="text-sm text-muted-foreground">
                   {s.round} {s.conference && `(${s.conference})`} -{" "}
-                  {formatToIST(s.startTime)} - {s.status}
+                  {formatToIST(s.startTime)}
                 </div>
                 {s.currentScore && (
                   <div className="text-sm">
@@ -160,7 +160,6 @@ function SeriesForm({
     team1Wins: series?.currentScore?.team1Wins || 0,
     team2Wins: series?.currentScore?.team2Wins || 0,
     winner: series?.winner || "none",
-    status: series?.status || "upcoming",
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -180,7 +179,6 @@ function SeriesForm({
         team2Wins: formData.team2Wins,
       },
       winner: formData.winner === "none" ? undefined : formData.winner,
-      status: formData.status,
     }
 
     try {
@@ -347,24 +345,6 @@ function SeriesForm({
             setFormData({ ...formData, winner: e.target.value })
           }
         />
-      </div>
-      <div>
-        <label className="text-sm font-medium">Status</label>
-        <Select
-          value={formData.status}
-          onValueChange={(value) =>
-            setFormData({ ...formData, status: value as any })
-          }
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="upcoming">Upcoming</SelectItem>
-            <SelectItem value="in-progress">In Progress</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
       <div className="flex gap-2">
         <Button type="submit">{series ? "Update" : "Create"}</Button>
