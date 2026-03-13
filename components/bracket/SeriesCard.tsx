@@ -59,7 +59,7 @@ export function SeriesCard({
     setSaving(true)
     try {
       await onPredictionChange({
-        seriesId: series._id,
+        seriesId: series._id as any,
         predictedWinner: selectedWinner,
         predictedScore: {
           team1Wins,

@@ -34,7 +34,7 @@ export function PlayInCard({
     setSaving(true)
     try {
       await onPredictionChange({
-        playInGameId: game._id,
+        playInGameId: game._id as any,
         predictedWinner: selectedWinner,
       })
     } catch (error) {
