@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { PlayoffBracketVisual } from "@/components/bracket/PlayoffBracketVisual"
 import { AdminSeriesModal } from "./AdminSeriesModal"
 import { AdminPlayInModal } from "./AdminPlayInModal"
@@ -17,11 +17,7 @@ export function AdminBracketView() {
   const [isPlayInModalOpen, setIsPlayInModalOpen] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchData()
-  }, [])
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [seriesRes, playInRes] = await Promise.all([
         fetch("/api/admin/series"),
@@ -42,11 +38,31 @@ export function AdminBracketView() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const handleSeriesClick = (s: ISeries) => {
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  const handleSeriesClick = (s: any) => {
     console.log("Admin clicked series:", s)
-    setSelectedSeries(s)
+    // Convert to ISeries format for the modal
+    const seriesData: ISeries = {
+      _id: s._id,
+      seasonId: s.seasonId || ({} as any), // Will be set when saving
+      round: s.round as ISeries["round"],
+      conference: s.conference as ISeries["conference"],
+      team1: s.team1,
+      team2: s.team2,
+      team1Seed: s.team1Seed,
+      team2Seed: s.team2Seed,
+      startTime: s.startTime,
+      currentScore: s.currentScore,
+      winner: s.winner,
+      createdAt: s.createdAt || new Date(),
+      updatedAt: s.updatedAt || new Date(),
+    }
+    setSelectedSeries(seriesData)
     setIsSeriesModalOpen(true)
   }
 

@@ -396,7 +396,12 @@ export function PlayoffBracketVisual({
         {/* Prediction Modal (only for non-admin mode) */}
         {!isAdmin && selectedSeries ? (
           <PredictionModal
-            series={selectedSeries as ISeries}
+            series={{
+              ...selectedSeries,
+              seasonId: (selectedSeries as any).seasonId || ({} as any),
+              createdAt: (selectedSeries as any).createdAt || new Date(),
+              updatedAt: (selectedSeries as any).updatedAt || new Date(),
+            } as ISeries}
             prediction={predictions.find((p) => {
               const seriesId = typeof p.seriesId === 'object' && p.seriesId !== null
                 ? (p.seriesId as any)._id?.toString()

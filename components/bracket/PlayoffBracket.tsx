@@ -2,24 +2,24 @@
 
 import { PlayoffBracketVisual } from "./PlayoffBracketVisual"
 import type { IPrediction } from "@/app/lib/models/Prediction"
-
-interface Series {
-  _id: string
-  round: "first" | "second" | "conference" | "finals"
-  conference: "east" | "west" | null
-  team1: string
-  team2: string
-  startTime: Date | string
-  winner?: string
-  currentScore?: {
-    team1Wins: number
-    team2Wins: number
-  }
-  status?: string
-}
+import type { ISeries } from "@/app/lib/models/Series"
 
 interface PlayoffBracketProps {
-  series: Series[]
+  series: ISeries[] | Array<{
+    _id: string
+    round: "first" | "second" | "conference" | "finals"
+    conference: "east" | "west" | null
+    team1: string
+    team2: string
+    startTime: Date | string
+    winner?: string
+    currentScore?: {
+      team1Wins: number
+      team2Wins: number
+    }
+    team1Seed?: number
+    team2Seed?: number
+  }>
   predictions?: IPrediction[]
   onPredictionSave?: (prediction: {
     seriesId: string
