@@ -126,7 +126,8 @@ function PlayInConferenceBracket({
         {/* Game 1: 7-8 */}
         <div>
           <div className="text-xs text-muted-foreground mb-2 text-center">
-            Game 1: 7th vs 8th Seed
+            <div className="md:inline">Game 1:</div>
+            <div className="md:inline md:ml-1">7th vs 8th Seed</div>
           </div>
           <div className="flex justify-center">
             <PlayInGameBox
@@ -155,7 +156,8 @@ function PlayInConferenceBracket({
         {/* Game 2: 9-10 */}
         <div>
           <div className="text-xs text-muted-foreground mb-2 text-center">
-            Game 2: 9th vs 10th Seed
+            <div className="md:inline">Game 2:</div>
+            <div className="md:inline md:ml-1">9th vs 10th Seed</div>
           </div>
           <div className="flex justify-center">
             <PlayInGameBox
@@ -182,7 +184,8 @@ function PlayInConferenceBracket({
       {/* Game 3: Final (Loser 7-8 vs Winner 9-10) - Below Games 1 & 2 */}
       <div>
         <div className="text-xs text-muted-foreground mb-2 text-center">
-          Game 3: Final (Loser 7-8 vs Winner 9-10)
+          <div className="md:inline">Game 3:</div>
+          <div className="md:inline md:ml-1">Final (Loser 7-8 vs Winner 9-10)</div>
         </div>
           <div className="flex justify-center">
             <PlayInGameBox
@@ -223,6 +226,16 @@ function PlayInGameBox({
   isViewingOtherUser: boolean
   viewingUserName?: string
 }) {
+  // Check if this is Game 1 or Game 2 (not Game 3/final)
+  const isGame1Or2 = game.gameType === "east-7-8" || game.gameType === "east-9-10" || 
+                     game.gameType === "west-7-8" || game.gameType === "west-9-10"
+  
+  // Get the last word of team names for very small screens (only for Game 1 and 2)
+  const getLastWord = (teamName: string): string => {
+    const words = teamName.trim().split(/\s+/)
+    return words.length > 0 ? words[words.length - 1] : teamName
+  }
+
   const isWinner1 = game.winner === game.team1
   const isWinner2 = game.winner === game.team2
   const hasPrediction1 = prediction?.predictedWinner === game.team1
@@ -323,7 +336,15 @@ function PlayInGameBox({
                   : ""
             }`}
           >
-            <TeamDisplay teamName={game.team1} size="sm" showName={true} className="justify-center" />
+            <TeamDisplay teamName={game.team1} size="sm" showName={false} className="justify-center" />
+            {isGame1Or2 ? (
+              <span className="text-[10px] md:text-xs font-medium" title={game.team1}>
+                <span className="max-[400px]:hidden">{game.team1}</span>
+                <span className="hidden max-[400px]:inline">{getLastWord(game.team1)}</span>
+              </span>
+            ) : (
+              <span className="text-[10px] md:text-xs font-medium">{game.team1}</span>
+            )}
             {correctPrediction1 && (
               <span className="text-[10px] md:text-xs font-semibold text-yellow-600 dark:text-yellow-400 shrink-0">✓</span>
             )}
@@ -344,7 +365,15 @@ function PlayInGameBox({
                   : ""
             }`}
           >
-            <TeamDisplay teamName={game.team2} size="sm" showName={true} className="justify-center" />
+            <TeamDisplay teamName={game.team2} size="sm" showName={false} className="justify-center" />
+            {isGame1Or2 ? (
+              <span className="text-[10px] md:text-xs font-medium" title={game.team2}>
+                <span className="max-[400px]:hidden">{game.team2}</span>
+                <span className="hidden max-[400px]:inline">{getLastWord(game.team2)}</span>
+              </span>
+            ) : (
+              <span className="text-[10px] md:text-xs font-medium">{game.team2}</span>
+            )}
             {correctPrediction2 && (
               <span className="text-[10px] md:text-xs font-semibold text-yellow-600 dark:text-yellow-400 shrink-0">✓</span>
             )}
@@ -355,7 +384,14 @@ function PlayInGameBox({
 
           {game.winner && (
             <div className="text-xs text-center text-muted-foreground pt-1 border-t">
-              Winner: {game.winner}
+              {isGame1Or2 ? (
+                <>
+                  <div>Winner:</div>
+                  <div className="font-semibold">{game.winner}</div>
+                </>
+              ) : (
+                <>Winner: {game.winner}</>
+              )}
             </div>
           )}
 
@@ -364,9 +400,22 @@ function PlayInGameBox({
             <div className="text-xs text-center pt-1 border-t pb-2">
               {prediction ? (
                 <div className="text-muted-foreground">
-                  {isViewingOtherUser && viewingUserName 
-                    ? `${viewingUserName.split(' ')[0]}'s pick:`
-                    : "Your pick:"} <span className="font-semibold">{prediction.predictedWinner}</span>
+                  {isGame1Or2 ? (
+                    <>
+                      <div>
+                        {isViewingOtherUser && viewingUserName 
+                          ? `${viewingUserName.split(' ')[0]}'s pick:`
+                          : "Your pick:"}
+                      </div>
+                      <div className="font-semibold">{prediction.predictedWinner}</div>
+                    </>
+                  ) : (
+                    <>
+                      {isViewingOtherUser && viewingUserName 
+                        ? `${viewingUserName.split(' ')[0]}'s pick:`
+                        : "Your pick:"} <span className="font-semibold">{prediction.predictedWinner}</span>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="text-muted-foreground italic">
