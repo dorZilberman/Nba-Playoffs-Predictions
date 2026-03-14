@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { PredictionModal } from "./PredictionModal"
 import { TeamDisplay } from "@/components/ui/TeamDisplay"
 import { Lock, X } from "lucide-react"
@@ -54,6 +55,7 @@ export function PlayoffBracketVisual({
 }: PlayoffBracketVisualProps) {
   const [selectedSeries, setSelectedSeries] = useState<Series | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedRound, setSelectedRound] = useState<"first" | "second" | "conference" | "finals">("first")
 
   const handleSeriesClick = (s: Series) => {
     console.log("Series clicked:", s)
@@ -201,6 +203,245 @@ export function PlayoffBracketVisual({
   const finalEastConf = getConferenceFinalsMatchup(conferenceEast, "east")
   const finalNBA = getFinalsMatchup(finals)
 
+  // Round selector buttons (mobile only)
+  const roundButtons = [
+    { value: "first" as const, label: "First Round" },
+    { value: "second" as const, label: "Second Round" },
+    { value: "conference" as const, label: "Conference Finals" },
+    { value: "finals" as const, label: "Finals" },
+  ]
+
+  // Helper function to render a round's content
+  const renderRoundContent = (round: "first" | "second" | "conference" | "finals") => {
+    if (round === "first") {
+      return (
+        <>
+          {/* Column 1: Western First Round */}
+          <div className="space-y-3 md:space-y-4">
+            <div className="text-center mb-2">
+              <h3 className="font-bold text-xs md:text-sm">WESTERN CONFERENCE</h3>
+            </div>
+            {firstWest.map((matchup, idx) => {
+              const prediction = predictions.find((p) => {
+                if (!p.seriesId) return false
+                const seriesId = typeof p.seriesId === 'object' && p.seriesId !== null
+                  ? (p.seriesId as any)._id?.toString() || (p.seriesId as any).toString()
+                  : String(p.seriesId)
+                return seriesId === matchup._id?.toString()
+              })
+              return (
+                <div
+                  key={matchup._id}
+                  id={`west-first-${idx}`}
+                  className="relative"
+                >
+                  <MatchupBox
+                    series={matchup}
+                    prediction={prediction}
+                    onClick={() => handleSeriesClick(matchup)}
+                    isAdmin={isAdmin}
+                    isViewingOtherUser={isViewingOtherUser}
+                    viewingUserName={viewingUserName}
+                  />
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Column 7: Eastern First Round */}
+          <div className="space-y-3 md:space-y-4">
+            <div className="text-center mb-2">
+              <h3 className="font-bold text-xs md:text-sm">EASTERN CONFERENCE</h3>
+            </div>
+            {firstEast.map((matchup, idx) => {
+              const prediction = predictions.find((p) => {
+                if (!p.seriesId) return false
+                const seriesId = typeof p.seriesId === 'object' && p.seriesId !== null
+                  ? (p.seriesId as any)._id?.toString() || (p.seriesId as any).toString()
+                  : String(p.seriesId)
+                return seriesId === matchup._id?.toString()
+              })
+              return (
+                <div
+                  key={matchup._id}
+                  id={`east-first-${idx}`}
+                  className="relative"
+                >
+                  <MatchupBox
+                    series={matchup}
+                    prediction={prediction}
+                    onClick={() => handleSeriesClick(matchup)}
+                    isAdmin={isAdmin}
+                    isViewingOtherUser={isViewingOtherUser}
+                    viewingUserName={viewingUserName}
+                  />
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )
+    } else if (round === "second") {
+      return (
+        <>
+          {/* Column 2: Western Second Round */}
+          <div className="space-y-16 md:space-y-24 flex flex-col justify-center">
+            <div className="text-center mb-2 md:hidden">
+              <h3 className="font-bold text-xs md:text-sm">WESTERN CONFERENCE</h3>
+            </div>
+            {secondWest.map((matchup, idx) => {
+              const prediction = predictions.find((p) => {
+                if (!p.seriesId) return false
+                const seriesId = typeof p.seriesId === 'object' && p.seriesId !== null
+                  ? (p.seriesId as any)._id?.toString() || (p.seriesId as any).toString()
+                  : String(p.seriesId)
+                return seriesId === matchup._id?.toString()
+              })
+              return (
+                <div
+                  key={matchup._id}
+                  id={`west-second-${idx}`}
+                  className="relative"
+                >
+                  <MatchupBox
+                    series={matchup}
+                    prediction={prediction}
+                    onClick={() => handleSeriesClick(matchup)}
+                    isAdmin={isAdmin}
+                    isViewingOtherUser={isViewingOtherUser}
+                    viewingUserName={viewingUserName}
+                  />
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Column 6: Eastern Second Round */}
+          <div className="space-y-16 md:space-y-24 flex flex-col justify-center">
+            <div className="text-center mb-2 md:hidden">
+              <h3 className="font-bold text-xs md:text-sm">EASTERN CONFERENCE</h3>
+            </div>
+            {secondEast.map((matchup, idx) => {
+              const prediction = predictions.find((p) => {
+                if (!p.seriesId) return false
+                const seriesId = typeof p.seriesId === 'object' && p.seriesId !== null
+                  ? (p.seriesId as any)._id?.toString() || (p.seriesId as any).toString()
+                  : String(p.seriesId)
+                return seriesId === matchup._id?.toString()
+              })
+              return (
+                <div
+                  key={matchup._id}
+                  id={`east-second-${idx}`}
+                  className="relative"
+                >
+                  <MatchupBox
+                    series={matchup}
+                    prediction={prediction}
+                    onClick={() => handleSeriesClick(matchup)}
+                    isAdmin={isAdmin}
+                    isViewingOtherUser={isViewingOtherUser}
+                    viewingUserName={viewingUserName}
+                  />
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )
+    } else if (round === "conference") {
+      return (
+        <>
+          {/* Column 3: Western Conference Finals */}
+          <div className="flex flex-col justify-center">
+            <div className="text-center mb-2">
+              <div className="text-[10px] md:text-xs font-semibold text-muted-foreground">
+                CONFERENCE FINALS
+              </div>
+            </div>
+            <div className="text-center mb-2 md:hidden">
+              <h3 className="font-bold text-xs md:text-sm">WESTERN CONFERENCE</h3>
+            </div>
+            <div className="relative" id="west-conf">
+              <MatchupBox
+                series={finalWestConf}
+                prediction={predictions.find((p) => {
+                  if (!p.seriesId) return false
+                  const seriesId = typeof p.seriesId === 'object' && p.seriesId !== null
+                    ? (p.seriesId as any)._id?.toString() || (p.seriesId as any).toString()
+                    : String(p.seriesId)
+                  return seriesId === finalWestConf._id?.toString()
+                })}
+                onClick={() => handleSeriesClick(finalWestConf)}
+                isAdmin={isAdmin}
+                isViewingOtherUser={isViewingOtherUser}
+                viewingUserName={viewingUserName}
+              />
+            </div>
+          </div>
+
+          {/* Column 5: Eastern Conference Finals */}
+          <div className="flex flex-col justify-center">
+            <div className="text-center mb-2">
+              <div className="text-[10px] md:text-xs font-semibold text-muted-foreground">
+                CONFERENCE FINALS
+              </div>
+            </div>
+            <div className="text-center mb-2 md:hidden">
+              <h3 className="font-bold text-xs md:text-sm">EASTERN CONFERENCE</h3>
+            </div>
+            <div className="relative" id="east-conf">
+              <MatchupBox
+                series={finalEastConf}
+                prediction={predictions.find((p) => {
+                  if (!p.seriesId) return false
+                  const seriesId = typeof p.seriesId === 'object' && p.seriesId !== null
+                    ? (p.seriesId as any)._id?.toString() || (p.seriesId as any).toString()
+                    : String(p.seriesId)
+                  return seriesId === finalEastConf._id?.toString()
+                })}
+                onClick={() => handleSeriesClick(finalEastConf)}
+                isAdmin={isAdmin}
+                isViewingOtherUser={isViewingOtherUser}
+                viewingUserName={viewingUserName}
+              />
+            </div>
+          </div>
+        </>
+      )
+    } else if (round === "finals") {
+      return (
+        <>
+          {/* Column 4: NBA Finals (Center) - Mobile: centered, Desktop: normal */}
+          <div className="flex flex-col justify-center col-span-2">
+            <div className="text-center mb-2">
+              <div className="text-xs font-semibold text-muted-foreground">
+                NBA FINALS
+              </div>
+            </div>
+            <div className="relative flex justify-center" id="finals">
+              <MatchupBox
+                series={finalNBA}
+                prediction={predictions.find((p) => {
+                  if (!p.seriesId) return false
+                  const seriesId = typeof p.seriesId === 'object' && p.seriesId !== null
+                    ? (p.seriesId as any)._id?.toString() || (p.seriesId as any).toString()
+                    : String(p.seriesId)
+                  return seriesId === finalNBA._id?.toString()
+                })}
+                onClick={() => handleSeriesClick(finalNBA)}
+                isAdmin={isAdmin}
+                isViewingOtherUser={isViewingOtherUser}
+                viewingUserName={viewingUserName}
+              />
+            </div>
+          </div>
+        </>
+      )
+    }
+    return null
+  }
+
   return (
     <div className="w-full bg-background border rounded-lg p-4 md:p-6">
       {/* Header */}
@@ -208,9 +449,25 @@ export function PlayoffBracketVisual({
         <h2 className="text-xl md:text-2xl font-bold">PLAYOFFS</h2>
       </div>
 
-        {/* Bracket Container - Now 7 columns to include conference finals and NBA finals in center */}
-        <div className="relative w-full min-h-[800px]">
-          <div className="grid grid-cols-7 gap-2 md:gap-4 max-w-full">
+      {/* Round Selector Buttons (Mobile Only) */}
+      <div className="md:hidden mb-4 flex gap-2 overflow-x-auto pb-2">
+        {roundButtons.map((btn) => (
+          <Button
+            key={btn.value}
+            variant={selectedRound === btn.value ? "default" : "outline"}
+            size="sm"
+            onClick={() => setSelectedRound(btn.value)}
+            className="whitespace-nowrap text-xs px-3 py-1.5"
+          >
+            {btn.label}
+          </Button>
+        ))}
+      </div>
+
+      {/* Bracket Container - Desktop: 7 columns, Mobile: 2 columns (one round at a time) */}
+      <div className="relative w-full min-h-[800px]">
+        {/* Desktop: Full bracket */}
+        <div className="hidden md:grid md:grid-cols-7 gap-2 md:gap-4 max-w-full">
           {/* Column 1: Western First Round */}
           <div className="space-y-3 md:space-y-4">
             <div className="text-center mb-2">
@@ -406,6 +663,25 @@ export function PlayoffBracketVisual({
                 </div>
               )
             })}
+          </div>
+        </div>
+
+        {/* Mobile: Single round at a time with smooth animation */}
+        <div className="md:hidden relative overflow-hidden min-h-[400px]">
+          <div
+            className="flex transition-transform duration-500 ease-in-out"
+            style={{
+              transform: `translateX(-${roundButtons.findIndex((btn) => btn.value === selectedRound) * 100}%)`,
+            }}
+          >
+            {roundButtons.map((btn) => (
+              <div
+                key={btn.value}
+                className="w-full flex-shrink-0 grid grid-cols-2 gap-4 px-2"
+              >
+                {renderRoundContent(btn.value)}
+              </div>
+            ))}
           </div>
         </div>
 
