@@ -733,7 +733,6 @@ function MatchupBox({
 }) {
   const team1Wins = series.currentScore?.team1Wins || 0
   const team2Wins = series.currentScore?.team2Wins || 0
-  const hasScore = team1Wins + team2Wins > 0
   // Check if teams are set - handle "TBD", "none", empty strings, and null/undefined
   const teamsSet = 
     series.team1 && 
@@ -749,6 +748,8 @@ function MatchupBox({
   const isLockedByTime = now >= startTime
   const isLockedByWinner = !!series.winner
   const isLocked = !teamsSet || isLockedByTime || isLockedByWinner
+  // Current score should show when: series is locked by time (deadline passed)
+  const hasScore = isLockedByTime && series.currentScore !== undefined
   // Admins can always click, regular users can only click if teams are set and not locked (by time or winner)
   // When viewing another user, disable clicking
   const canClick = !isViewingOtherUser && (isAdmin || (teamsSet && !isLockedByTime && !isLockedByWinner))
@@ -827,10 +828,13 @@ function MatchupBox({
           )}
         </div>
       )}
-      {/* Show lock icon even if no predicted score exists */}
+      {/* Show lock icon and "No prediction submitted" text when series is over and no prediction exists */}
       {showSmallLock && !prediction?.predictedScore && (
-        <div className="text-center mt-1">
-          <Lock className="h-3 w-3 text-muted-foreground mx-auto" />
+        <div className="text-center mt-1 flex items-center justify-center gap-1">
+          <span className="text-[8px] md:text-[9px] text-muted-foreground font-medium">
+            No prediction submitted
+          </span>
+          <Lock className="h-3 w-3 text-muted-foreground" />
         </div>
       )}
       </div>
@@ -867,6 +871,14 @@ function TeamBox({
   // Check if user predicted incorrectly
   const wrongPrediction = hasPrediction && !isWinner && actualWinner
 
+  // Get the last word of the team name for very small screens
+  const getLastWord = (teamName: string): string => {
+    const words = teamName.trim().split(/\s+/)
+    return words.length > 0 ? words[words.length - 1] : teamName
+  }
+
+  const lastWord = getLastWord(team)
+
   return (
     <Card
       className={`h-10 md:h-12 flex items-center border-2 ${
@@ -882,7 +894,9 @@ function TeamBox({
           <TeamDisplay teamName={team} size="sm" showName={false} />
         </div>
         <div className="flex-1 font-medium text-[9px] md:text-[10px] truncate min-w-0 overflow-hidden" title={team}>
-          {team}
+          {/* Show full name on screens >= 400px, last word on screens < 400px */}
+          <span className="max-[400px]:hidden">{team}</span>
+          <span className="hidden max-[400px]:inline">{lastWord}</span>
         </div>
         <div className="flex items-center gap-0.5 shrink-0">
           {seed !== undefined && (

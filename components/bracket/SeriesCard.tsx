@@ -99,11 +99,32 @@ export function SeriesCard({
             {series.round} {series.conference && `(${series.conference})`}
           </div>
           <div className="text-xs text-muted-foreground">
-            {formatToIST(series.startTime)}
+            Prediction Deadline: {formatToIST(series.startTime)}
           </div>
 
-          {/* Real Result */}
-          {series.winner && (
+          {/* Current Score (when deadline passed) */}
+          {(() => {
+            const now = new Date()
+            const startTime = new Date(series.startTime)
+            const isLockedByTime = now >= startTime
+            const isLockedByWinner = !!series.winner
+            // Show current score when deadline passed, but only if no winner yet (otherwise show Real Result)
+            const shouldShowScore = isLockedByTime && !isLockedByWinner && series.currentScore !== undefined
+            
+            return shouldShowScore ? (
+              <div className="rounded bg-primary/10 p-2">
+                <div className="text-xs font-semibold text-primary">Current Score</div>
+                <div className="font-bold flex items-center gap-2">
+                  <TeamDisplay teamName={series.team1} size="sm" />
+                  {series.currentScore.team1Wins} - {series.currentScore.team2Wins}
+                  <TeamDisplay teamName={series.team2} size="sm" />
+                </div>
+              </div>
+            ) : null
+          })()}
+
+          {/* Real Result (final result when winner is determined) */}
+          {series.winner && series.currentScore && (
             <div className="rounded bg-primary/10 p-2">
               <div className="text-xs font-semibold text-primary">Real Result</div>
               <div className="font-bold flex items-center gap-2">

@@ -171,14 +171,22 @@ export function PredictionModal({
         <div className="space-y-4 py-4">
           {/* Series Info */}
           <div className="text-sm text-muted-foreground">
-            <div>Start Time: {formatToIST(series.startTime)}</div>
-            {series.currentScore && (
-              <div className="flex items-center gap-2">
-                Current Score: <TeamDisplay teamName={series.team1} size="sm" />
-                {series.currentScore.team1Wins} - {series.currentScore.team2Wins}
-                <TeamDisplay teamName={series.team2} size="sm" />
-              </div>
-            )}
+            <div>Prediction Deadline: {formatToIST(series.startTime)}</div>
+            {(() => {
+              const now = new Date()
+              const startTime = new Date(series.startTime)
+              const isLockedByTime = now >= startTime
+              // Show current score when: series is locked by time (deadline passed)
+              const shouldShowScore = isLockedByTime && series.currentScore !== undefined
+              
+              return shouldShowScore ? (
+                <div className="flex items-center gap-2">
+                  Current Score: <TeamDisplay teamName={series.team1} size="sm" />
+                  {series.currentScore.team1Wins} - {series.currentScore.team2Wins}
+                  <TeamDisplay teamName={series.team2} size="sm" />
+                </div>
+              ) : null
+            })()}
             {series.winner && (
               <div className="font-semibold text-foreground flex items-center gap-2">
                 Winner: <TeamDisplay teamName={series.winner} size="sm" />

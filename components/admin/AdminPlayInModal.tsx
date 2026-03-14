@@ -209,7 +209,7 @@ export function AdminPlayInModal({
             <Input
               id="startTime"
               type="datetime-local"
-              min="2026-04-01T00:00"
+              min="2026-03-01T00:00"
               max="2026-08-01T23:59"
               value={formData.startTime}
               onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
@@ -221,7 +221,7 @@ export function AdminPlayInModal({
               </p>
             )}
             <p className="text-xs text-muted-foreground">
-              Deadline must be between April 1, 2026 and August 1, 2026
+              Deadline must be between March 1, 2026 and August 1, 2026
             </p>
           </div>
 

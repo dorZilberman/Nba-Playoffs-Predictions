@@ -61,7 +61,7 @@ export function PlayInCard({
         <div className="space-y-3">
           <div className="text-xs text-muted-foreground">{game.gameType}</div>
           <div className="text-xs text-muted-foreground">
-            {formatToIST(game.startTime)}
+            Prediction Deadline: {formatToIST(game.startTime)}
           </div>
 
           {/* Real Result */}

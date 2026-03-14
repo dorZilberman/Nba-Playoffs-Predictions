@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select"
 import { formatToIST } from "@/app/lib/utils/timezone"
 import { TeamDisplay } from "@/components/ui/TeamDisplay"
+import { ChevronUp, ChevronDown } from "lucide-react"
 import type { ISeries } from "@/app/lib/models/Series"
 import type { ITeam } from "@/app/lib/models/Team"
 
@@ -50,18 +51,34 @@ export function AdminSeriesModal({
 
   const [teams, setTeams] = useState<ITeam[]>([])
   const [loadingTeams, setLoadingTeams] = useState(true)
-  const [formData, setFormData] = useState({
-    team1: series.team1 || "",
-    team2: series.team2 || "",
-    team1Seed: series.team1Seed || undefined,
-    team2Seed: series.team2Seed || undefined,
-    startTime: series.startTime
-      ? utcToLocalDateTime(series.startTime)
-      : "",
-    team1Wins: series.currentScore?.team1Wins || 0,
-    team2Wins: series.currentScore?.team2Wins || 0,
-    winner: series.winner || "",
-  })
+  
+  // Helper to safely get form data from series
+  const getInitialFormData = useCallback(() => {
+    let startTimeValue = ""
+    if (series.startTime) {
+      try {
+        const date = typeof series.startTime === "string" ? new Date(series.startTime) : series.startTime
+        if (!isNaN(date.getTime())) {
+          startTimeValue = utcToLocalDateTime(date)
+        }
+      } catch (error) {
+        console.error("Error converting startTime:", error)
+      }
+    }
+    
+    return {
+      team1: series.team1 || "",
+      team2: series.team2 || "",
+      team1Seed: series.team1Seed !== undefined && series.team1Seed !== null ? series.team1Seed : undefined,
+      team2Seed: series.team2Seed !== undefined && series.team2Seed !== null ? series.team2Seed : undefined,
+      startTime: startTimeValue,
+      team1Wins: series.currentScore?.team1Wins ?? 0,
+      team2Wins: series.currentScore?.team2Wins ?? 0,
+      winner: series.winner || "",
+    }
+  }, [series])
+  
+  const [formData, setFormData] = useState(getInitialFormData())
   const [saving, setSaving] = useState(false)
 
   const fetchTeams = useCallback(async () => {
@@ -96,20 +113,10 @@ export function AdminSeriesModal({
 
   useEffect(() => {
     if (isOpen) {
-      setFormData({
-        team1: series.team1 || "",
-        team2: series.team2 || "",
-        team1Seed: series.team1Seed || undefined,
-        team2Seed: series.team2Seed || undefined,
-        startTime: series.startTime
-          ? utcToLocalDateTime(series.startTime)
-          : "",
-        team1Wins: series.currentScore?.team1Wins || 0,
-        team2Wins: series.currentScore?.team2Wins || 0,
-        winner: series.winner || "",
-      })
+      // Reset form data with current series values when modal opens
+      setFormData(getInitialFormData())
     }
-  }, [isOpen, series])
+  }, [isOpen, getInitialFormData])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -177,7 +184,8 @@ export function AdminSeriesModal({
                     setFormData({
                       ...formData,
                       team1: value === "none" ? "" : value,
-                      team1Seed: selectedTeam?.seed,
+                      // Only update seed if the selected team has a seed, otherwise preserve existing seed
+                      team1Seed: selectedTeam?.seed !== undefined ? selectedTeam.seed : formData.team1Seed,
                     })
                   }}
                 >
@@ -207,7 +215,8 @@ export function AdminSeriesModal({
                     setFormData({
                       ...formData,
                       team2: value === "none" ? "" : value,
-                      team2Seed: selectedTeam?.seed,
+                      // Only update seed if the selected team has a seed, otherwise preserve existing seed
+                      team2Seed: selectedTeam?.seed !== undefined ? selectedTeam.seed : formData.team2Seed,
                     })
                   }}
                 >
@@ -271,7 +280,7 @@ export function AdminSeriesModal({
             <Input
               id="startTime"
               type="datetime-local"
-              min="2026-04-01T00:00"
+              min="2026-03-01T00:00"
               max="2026-08-01T23:59"
               value={formData.startTime}
               onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
@@ -283,7 +292,7 @@ export function AdminSeriesModal({
               </p>
             )}
             <p className="text-xs text-muted-foreground">
-              Deadline must be between April 1, 2026 and August 1, 2026
+              Deadline must be between March 1, 2026 and August 1, 2026
             </p>
           </div>
 
@@ -292,40 +301,104 @@ export function AdminSeriesModal({
             <Label>Current Series Score</Label>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="team1Wins" className="text-xs text-muted-foreground">
-                  {formData.team1} Wins
+                <Label htmlFor="team1Wins" className="text-xs text-muted-foreground mb-2 block">
+                  {formData.team1 || "Team 1"} Wins
                 </Label>
-                <Input
-                  id="team1Wins"
-                  type="number"
-                  min="0"
-                  max="4"
-                  value={formData.team1Wins}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      team1Wins: parseInt(e.target.value) || 0,
-                    })
-                  }
-                />
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() =>
+                      setFormData({
+                        ...formData,
+                        team1Wins: Math.max(0, formData.team1Wins - 1),
+                      })
+                    }
+                    disabled={formData.team1Wins <= 0}
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                  <Input
+                    id="team1Wins"
+                    type="number"
+                    min="0"
+                    max="4"
+                    value={formData.team1Wins}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0
+                      setFormData({
+                        ...formData,
+                        team1Wins: Math.max(0, Math.min(4, val)),
+                      })
+                    }}
+                    className="text-center"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() =>
+                      setFormData({
+                        ...formData,
+                        team1Wins: Math.min(4, formData.team1Wins + 1),
+                      })
+                    }
+                    disabled={formData.team1Wins >= 4}
+                  >
+                    <ChevronUp className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
               <div>
-                <Label htmlFor="team2Wins" className="text-xs text-muted-foreground">
-                  {formData.team2} Wins
+                <Label htmlFor="team2Wins" className="text-xs text-muted-foreground mb-2 block">
+                  {formData.team2 || "Team 2"} Wins
                 </Label>
-                <Input
-                  id="team2Wins"
-                  type="number"
-                  min="0"
-                  max="4"
-                  value={formData.team2Wins}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      team2Wins: parseInt(e.target.value) || 0,
-                    })
-                  }
-                />
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() =>
+                      setFormData({
+                        ...formData,
+                        team2Wins: Math.max(0, formData.team2Wins - 1),
+                      })
+                    }
+                    disabled={formData.team2Wins <= 0}
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                  <Input
+                    id="team2Wins"
+                    type="number"
+                    min="0"
+                    max="4"
+                    value={formData.team2Wins}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0
+                      setFormData({
+                        ...formData,
+                        team2Wins: Math.max(0, Math.min(4, val)),
+                      })
+                    }}
+                    className="text-center"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() =>
+                      setFormData({
+                        ...formData,
+                        team2Wins: Math.min(4, formData.team2Wins + 1),
+                      })
+                    }
+                    disabled={formData.team2Wins >= 4}
+                  >
+                    <ChevronUp className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
