@@ -205,12 +205,12 @@ export function PredictionModal({
                 variant={selectedWinner === series.team1 ? "default" : "outline"}
                 onClick={() => handleTeamClick(series.team1)}
                 disabled={locked}
-                className="h-16 flex flex-col items-center justify-center gap-2"
+                className="h-auto min-h-[64px] flex flex-col items-center justify-center gap-2 p-3"
               >
                 <TeamDisplay teamName={series.team1} size="sm" />
-                <div className="font-semibold">{series.team1}</div>
+                <div className="font-semibold text-xs text-center break-words">{series.team1}</div>
                 {selectedWinner === series.team1 && (
-                  <Check className="h-5 w-5 mt-1" />
+                  <Check className="h-5 w-5 mt-1 shrink-0" />
                 )}
               </Button>
               <Button
@@ -218,12 +218,12 @@ export function PredictionModal({
                 variant={selectedWinner === series.team2 ? "default" : "outline"}
                 onClick={() => handleTeamClick(series.team2)}
                 disabled={locked}
-                className="h-16 flex flex-col items-center justify-center gap-2"
+                className="h-auto min-h-[64px] flex flex-col items-center justify-center gap-2 p-3"
               >
                 <TeamDisplay teamName={series.team2} size="sm" />
-                <div className="font-semibold">{series.team2}</div>
+                <div className="font-semibold text-xs text-center break-words">{series.team2}</div>
                 {selectedWinner === series.team2 && (
-                  <Check className="h-5 w-5 mt-1" />
+                  <Check className="h-5 w-5 mt-1 shrink-0" />
                 )}
               </Button>
             </div>
@@ -272,7 +272,7 @@ export function PredictionModal({
                 Your Current Prediction
               </div>
               {prediction.predictedScore && (
-                <div className="text-sm flex items-center gap-2 mb-2 whitespace-nowrap overflow-hidden">
+                <div className="text-sm flex items-center gap-2 whitespace-nowrap overflow-hidden">
                   <div className="shrink-0">
                     <TeamDisplay teamName={series.team1} size="sm" />
                   </div>
@@ -284,9 +284,6 @@ export function PredictionModal({
                   </div>
                 </div>
               )}
-              <div className="text-sm font-medium flex items-center gap-2">
-                Your Predicted Winner: <TeamDisplay teamName={prediction.predictedWinner} size="sm" />
-              </div>
             </div>
           )}
         </div>
