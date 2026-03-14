@@ -3,6 +3,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/components/auth-provider"
+import { TeamsProvider } from "@/components/teams-provider"
 import "@/app/lib/db-startup" // Initialize database connection check on startup
 
 const inter = Inter({ subsets: ["latin"] })
@@ -27,7 +28,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            {children}
+            <TeamsProvider>
+              {children}
+            </TeamsProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

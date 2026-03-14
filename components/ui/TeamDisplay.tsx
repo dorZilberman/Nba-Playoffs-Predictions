@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useMemo } from "react"
 import Image from "next/image"
-import type { ITeam } from "@/app/lib/models/Team"
+import { useTeams } from "@/components/teams-provider"
 
 interface TeamDisplayProps {
   teamName: string
@@ -17,31 +17,14 @@ export function TeamDisplay({
   showName = true,
   className = "",
 }: TeamDisplayProps) {
-  const [team, setTeam] = useState<ITeam | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  const fetchTeam = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/teams?name=${encodeURIComponent(teamName)}`)
-      if (res.ok) {
-        const teams = await res.json()
-        const foundTeam = Array.isArray(teams) ? teams.find((t: ITeam) => t.name === teamName) : null
-        setTeam(foundTeam || null)
-      }
-    } catch (error) {
-      console.error("Error fetching team:", error)
-    } finally {
-      setLoading(false)
+  const { getTeamByName, loading } = useTeams()
+  
+  const team = useMemo(() => {
+    if (!teamName || teamName === "TBD") {
+      return null
     }
-  }, [teamName])
-
-  useEffect(() => {
-    if (teamName && teamName !== "TBD") {
-      fetchTeam()
-    } else {
-      setLoading(false)
-    }
-  }, [teamName, fetchTeam])
+    return getTeamByName(teamName)
+  }, [teamName, getTeamByName])
 
   const sizeClasses = {
     sm: { logo: "w-4 h-4", text: "text-[10px] md:text-xs" },
@@ -96,10 +79,6 @@ export function TeamDisplay({
             height={64}
             className="w-full h-full object-contain"
             unoptimized
-            onError={() => {
-              // Image will fallback to initials via state
-              setTeam(null)
-            }}
           />
         </div>
       ) : (
