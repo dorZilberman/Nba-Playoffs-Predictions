@@ -171,7 +171,7 @@ export function PredictionModal({
         <div className="space-y-4 py-4">
           {/* Series Info */}
           <div className="text-sm text-muted-foreground">
-            <div>Prediction Deadline: {formatToIST(series.startTime)}</div>
+            <div>Start Time: {formatToIST(series.startTime)}</div>
             {(() => {
               const now = new Date()
               const startTime = new Date(series.startTime)
@@ -268,19 +268,24 @@ export function PredictionModal({
           {/* Current Prediction Display */}
           {prediction && (
             <div className="rounded border-2 border-secondary p-3">
-              <div className="text-xs font-semibold text-secondary mb-1">
+              <div className="text-sm font-semibold text-foreground mb-2">
                 Your Current Prediction
               </div>
               {prediction.predictedScore && (
-                <div className="text-sm flex items-center gap-2">
-                  <TeamDisplay teamName={series.team1} size="sm" />
-                  {prediction.predictedScore.team1Wins} -{" "}
-                  {prediction.predictedScore.team2Wins}
-                  <TeamDisplay teamName={series.team2} size="sm" />
+                <div className="text-sm flex items-center gap-2 mb-2 whitespace-nowrap overflow-hidden">
+                  <div className="shrink-0">
+                    <TeamDisplay teamName={series.team1} size="sm" />
+                  </div>
+                  <span className="font-semibold shrink-0">
+                    {prediction.predictedScore.team1Wins} - {prediction.predictedScore.team2Wins}
+                  </span>
+                  <div className="shrink-0">
+                    <TeamDisplay teamName={series.team2} size="sm" />
+                  </div>
                 </div>
               )}
               <div className="text-sm font-medium flex items-center gap-2">
-                Winner: <TeamDisplay teamName={prediction.predictedWinner} size="sm" />
+                Your Predicted Winner: <TeamDisplay teamName={prediction.predictedWinner} size="sm" />
               </div>
             </div>
           )}

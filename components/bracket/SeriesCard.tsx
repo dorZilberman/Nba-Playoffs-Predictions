@@ -99,7 +99,7 @@ export function SeriesCard({
             {series.round} {series.conference && `(${series.conference})`}
           </div>
           <div className="text-xs text-muted-foreground">
-            Prediction Deadline: {formatToIST(series.startTime)}
+            {formatToIST(series.startTime)}
           </div>
 
           {/* Current Score (when deadline passed) */}

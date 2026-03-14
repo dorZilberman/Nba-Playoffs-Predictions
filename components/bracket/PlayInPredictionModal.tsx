@@ -106,7 +106,7 @@ export function PlayInPredictionModal({
         <div className="space-y-4 py-4">
           {/* Game Info */}
           <div className="text-sm text-muted-foreground">
-            <div>Prediction Deadline: {formatToIST(game.startTime)}</div>
+            <div>Start Time: {formatToIST(game.startTime)}</div>
             {game.winner && (
               <div className="font-semibold text-foreground flex items-center gap-2">
                 Winner: <TeamDisplay teamName={game.winner} size="sm" />
