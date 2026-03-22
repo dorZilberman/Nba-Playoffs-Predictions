@@ -8,6 +8,7 @@ import { Lock, Check } from "lucide-react"
 import { formatToIST } from "@/app/lib/utils/timezone"
 import { isSeriesLocked } from "@/app/lib/locking/lockChecker"
 import { TeamDisplay } from "@/components/ui/TeamDisplay"
+import { LockCountdown } from "@/components/bracket/LockCountdown"
 import type { ISeries } from "@/app/lib/models/Series"
 import type { IPrediction } from "@/app/lib/models/Prediction"
 
@@ -101,6 +102,10 @@ export function SeriesCard({
           <div className="text-xs text-muted-foreground">
             {formatToIST(series.startTime)}
           </div>
+          <LockCountdown
+            lockAt={series.startTime}
+            hide={locked || !!series.winner}
+          />
 
           {/* Current Score (when deadline passed) */}
           {(() => {

@@ -13,6 +13,7 @@ import { Check, Lock } from "lucide-react"
 import { formatToIST } from "@/app/lib/utils/timezone"
 import { isPlayInGameLocked } from "@/app/lib/locking/lockChecker"
 import { TeamDisplay } from "@/components/ui/TeamDisplay"
+import { LockCountdown } from "@/components/bracket/LockCountdown"
 import type { IPlayInGame } from "@/app/lib/models/PlayInGame"
 import type { IPrediction } from "@/app/lib/models/Prediction"
 
@@ -107,6 +108,7 @@ export function PlayInPredictionModal({
           {/* Game Info */}
           <div className="text-sm text-muted-foreground">
             <div>Start Time: {formatToIST(game.startTime)}</div>
+            <LockCountdown lockAt={game.startTime} hide={locked} />
             {game.winner && (
               <div className="font-semibold text-foreground flex items-center gap-2">
                 Winner: <TeamDisplay teamName={game.winner} size="sm" />

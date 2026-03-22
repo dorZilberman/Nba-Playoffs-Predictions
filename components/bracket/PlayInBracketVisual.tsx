@@ -1,6 +1,7 @@
 "use client"
 
 import { Card, CardContent } from "@/components/ui/card"
+import { LockCountdown } from "@/components/bracket/LockCountdown"
 import { TeamDisplay } from "@/components/ui/TeamDisplay"
 import { Lock, X } from "lucide-react"
 import type { IPlayInGame } from "@/app/lib/models/PlayInGame"
@@ -426,6 +427,12 @@ function PlayInGameBox({
           )}
         </CardContent>
       </Card>
+      <LockCountdown
+        lockAt={game.startTime}
+        hide={isLockedByTime || isLockedByWinner}
+        className="mt-1.5 text-[9px] md:text-[10px] px-1 leading-tight"
+        iconClassName="h-2.5 w-2.5 shrink-0"
+      />
       </div>
       
       {/* Big lock overlay (only when teams are NOT set) */}

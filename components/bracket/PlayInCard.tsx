@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Lock, Check } from "lucide-react"
 import { formatToIST } from "@/app/lib/utils/timezone"
 import { isPlayInGameLocked } from "@/app/lib/locking/lockChecker"
+import { LockCountdown } from "@/components/bracket/LockCountdown"
 import type { IPlayInGame } from "@/app/lib/models/PlayInGame"
 import type { IPrediction } from "@/app/lib/models/Prediction"
 
@@ -63,6 +64,10 @@ export function PlayInCard({
           <div className="text-xs text-muted-foreground">
             {formatToIST(game.startTime)}
           </div>
+          <LockCountdown
+            lockAt={game.startTime}
+            hide={locked || !!game.winner}
+          />
 
           {/* Real Result */}
           {game.winner && (

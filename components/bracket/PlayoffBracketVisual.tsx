@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { PredictionModal } from "./PredictionModal"
+import { LockCountdown } from "@/components/bracket/LockCountdown"
 import { TeamDisplay } from "@/components/ui/TeamDisplay"
 import { Lock, X } from "lucide-react"
 import type { ISeries } from "@/app/lib/models/Series"
@@ -837,6 +838,12 @@ function MatchupBox({
           <Lock className="h-3 w-3 text-muted-foreground" />
         </div>
       )}
+      <LockCountdown
+        lockAt={series.startTime}
+        hide={isLockedByTime || isLockedByWinner}
+        className="mt-0.5 text-[7px] md:text-[8px] leading-tight gap-0.5"
+        iconClassName="h-2 w-2 md:h-2.5 md:w-2.5"
+      />
       </div>
       
       {/* Big lock overlay (only when teams are NOT set) */}

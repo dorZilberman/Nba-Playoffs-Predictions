@@ -13,6 +13,7 @@ import { Check, Lock } from "lucide-react"
 import { formatToIST } from "@/app/lib/utils/timezone"
 import { isSeriesLocked } from "@/app/lib/locking/lockChecker"
 import { TeamDisplay } from "@/components/ui/TeamDisplay"
+import { LockCountdown } from "@/components/bracket/LockCountdown"
 import type { ISeries } from "@/app/lib/models/Series"
 import type { IPrediction } from "@/app/lib/models/Prediction"
 
@@ -172,6 +173,7 @@ export function PredictionModal({
           {/* Series Info */}
           <div className="text-sm text-muted-foreground">
             <div>Start Time: {formatToIST(series.startTime)}</div>
+            <LockCountdown lockAt={series.startTime} hide={locked} />
             {(() => {
               const now = new Date()
               const startTime = new Date(series.startTime)
