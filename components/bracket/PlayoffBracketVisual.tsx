@@ -7,8 +7,46 @@ import { PredictionModal } from "./PredictionModal"
 import { LockCountdown } from "@/components/bracket/LockCountdown"
 import { TeamDisplay } from "@/components/ui/TeamDisplay"
 import { Lock, X } from "lucide-react"
+import { cn } from "@/app/lib/utils/cn"
 import type { ISeries } from "@/app/lib/models/Series"
 import type { IPrediction } from "@/app/lib/models/Prediction"
+
+export interface WhatIfBracketMode {
+  eligibleSeriesIds: Set<string>
+  hypoScores: Record<string, { team1Wins: number; team2Wins: number }>
+  onHypoSelect: (seriesId: string, team1Wins: number, team2Wins: number) => void
+  onHypoClear: (seriesId: string) => void
+}
+
+function isWhatIfEligibleSeries(
+  s: Series,
+  eligible: Set<string> | undefined
+): boolean {
+  if (!eligible?.size) return false
+  const id = String(s._id)
+  if (id.startsWith("placeholder")) return false
+  return eligible.has(id)
+}
+
+/** Strip simulated winner so the modal matches the normal prediction flow */
+function seriesToISeriesForWhatIfModal(s: Series): ISeries {
+  const startTime = new Date(s.startTime)
+  return {
+    _id: s._id,
+    seasonId: (s as unknown as Partial<ISeries>).seasonId ?? ({} as ISeries["seasonId"]),
+    round: s.round,
+    conference: s.conference,
+    team1: s.team1,
+    team2: s.team2,
+    team1Seed: s.team1Seed,
+    team2Seed: s.team2Seed,
+    startTime,
+    currentScore: s.currentScore ?? { team1Wins: 0, team2Wins: 0 },
+    winner: undefined,
+    createdAt: startTime,
+    updatedAt: startTime,
+  }
+}
 
 interface Series {
   _id: string
@@ -42,6 +80,10 @@ interface PlayoffBracketVisualProps {
   isAdmin?: boolean
   isViewingOtherUser?: boolean
   viewingUserName?: string
+  /** No prediction modal or admin series edit; display-only (e.g. what-if page) */
+  readOnly?: boolean
+  /** What-if page: highlight eligible matchups and open score picker on click */
+  whatIfMode?: WhatIfBracketMode
 }
 
 
@@ -53,13 +95,32 @@ export function PlayoffBracketVisual({
   isAdmin = false,
   isViewingOtherUser = false,
   viewingUserName,
+  readOnly = false,
+  whatIfMode,
 }: PlayoffBracketVisualProps) {
   const [selectedSeries, setSelectedSeries] = useState<Series | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [whatIfDialogSeries, setWhatIfDialogSeries] = useState<Series | null>(
+    null
+  )
   const [selectedRound, setSelectedRound] = useState<"first" | "second" | "conference" | "finals">("first")
+
+  const handleBracketClick = (s: Series) => {
+    if (
+      whatIfMode &&
+      isWhatIfEligibleSeries(s, whatIfMode.eligibleSeriesIds)
+    ) {
+      setWhatIfDialogSeries(s)
+      return
+    }
+    handleSeriesClick(s)
+  }
 
   const handleSeriesClick = (s: Series) => {
     console.log("Series clicked:", s)
+    if (readOnly) {
+      return
+    }
     // Don't allow clicking when viewing another user's predictions
     if (isViewingOtherUser) {
       return
@@ -239,10 +300,15 @@ export function PlayoffBracketVisual({
                   <MatchupBox
                     series={matchup}
                     prediction={prediction}
-                    onClick={() => handleSeriesClick(matchup)}
+                    onClick={() => handleBracketClick(matchup)}
                     isAdmin={isAdmin}
                     isViewingOtherUser={isViewingOtherUser}
                     viewingUserName={viewingUserName}
+                    readOnly={readOnly}
+                    whatIfEligible={
+                      !!whatIfMode &&
+                      isWhatIfEligibleSeries(matchup, whatIfMode.eligibleSeriesIds)
+                    }
                   />
                 </div>
               )
@@ -271,10 +337,15 @@ export function PlayoffBracketVisual({
                   <MatchupBox
                     series={matchup}
                     prediction={prediction}
-                    onClick={() => handleSeriesClick(matchup)}
+                    onClick={() => handleBracketClick(matchup)}
                     isAdmin={isAdmin}
                     isViewingOtherUser={isViewingOtherUser}
                     viewingUserName={viewingUserName}
+                    readOnly={readOnly}
+                    whatIfEligible={
+                      !!whatIfMode &&
+                      isWhatIfEligibleSeries(matchup, whatIfMode.eligibleSeriesIds)
+                    }
                   />
                 </div>
               )
@@ -307,10 +378,15 @@ export function PlayoffBracketVisual({
                   <MatchupBox
                     series={matchup}
                     prediction={prediction}
-                    onClick={() => handleSeriesClick(matchup)}
+                    onClick={() => handleBracketClick(matchup)}
                     isAdmin={isAdmin}
                     isViewingOtherUser={isViewingOtherUser}
                     viewingUserName={viewingUserName}
+                    readOnly={readOnly}
+                    whatIfEligible={
+                      !!whatIfMode &&
+                      isWhatIfEligibleSeries(matchup, whatIfMode.eligibleSeriesIds)
+                    }
                   />
                 </div>
               )
@@ -339,10 +415,15 @@ export function PlayoffBracketVisual({
                   <MatchupBox
                     series={matchup}
                     prediction={prediction}
-                    onClick={() => handleSeriesClick(matchup)}
+                    onClick={() => handleBracketClick(matchup)}
                     isAdmin={isAdmin}
                     isViewingOtherUser={isViewingOtherUser}
                     viewingUserName={viewingUserName}
+                    readOnly={readOnly}
+                    whatIfEligible={
+                      !!whatIfMode &&
+                      isWhatIfEligibleSeries(matchup, whatIfMode.eligibleSeriesIds)
+                    }
                   />
                 </div>
               )
@@ -373,10 +454,18 @@ export function PlayoffBracketVisual({
                     : String(p.seriesId)
                   return seriesId === finalWestConf._id?.toString()
                 })}
-                onClick={() => handleSeriesClick(finalWestConf)}
+                onClick={() => handleBracketClick(finalWestConf)}
                 isAdmin={isAdmin}
                 isViewingOtherUser={isViewingOtherUser}
                 viewingUserName={viewingUserName}
+                readOnly={readOnly}
+                whatIfEligible={
+                  !!whatIfMode &&
+                  isWhatIfEligibleSeries(
+                    finalWestConf,
+                    whatIfMode.eligibleSeriesIds
+                  )
+                }
               />
             </div>
           </div>
@@ -401,10 +490,18 @@ export function PlayoffBracketVisual({
                     : String(p.seriesId)
                   return seriesId === finalEastConf._id?.toString()
                 })}
-                onClick={() => handleSeriesClick(finalEastConf)}
+                onClick={() => handleBracketClick(finalEastConf)}
                 isAdmin={isAdmin}
                 isViewingOtherUser={isViewingOtherUser}
                 viewingUserName={viewingUserName}
+                readOnly={readOnly}
+                whatIfEligible={
+                  !!whatIfMode &&
+                  isWhatIfEligibleSeries(
+                    finalEastConf,
+                    whatIfMode.eligibleSeriesIds
+                  )
+                }
               />
             </div>
           </div>
@@ -430,10 +527,15 @@ export function PlayoffBracketVisual({
                     : String(p.seriesId)
                   return seriesId === finalNBA._id?.toString()
                 })}
-                onClick={() => handleSeriesClick(finalNBA)}
+                onClick={() => handleBracketClick(finalNBA)}
                 isAdmin={isAdmin}
                 isViewingOtherUser={isViewingOtherUser}
                 viewingUserName={viewingUserName}
+                readOnly={readOnly}
+                whatIfEligible={
+                  !!whatIfMode &&
+                  isWhatIfEligibleSeries(finalNBA, whatIfMode.eligibleSeriesIds)
+                }
               />
             </div>
           </div>
@@ -491,10 +593,15 @@ export function PlayoffBracketVisual({
                   <MatchupBox
                     series={matchup}
                     prediction={prediction}
-                    onClick={() => handleSeriesClick(matchup)}
+                    onClick={() => handleBracketClick(matchup)}
                     isAdmin={isAdmin}
                     isViewingOtherUser={isViewingOtherUser}
                     viewingUserName={viewingUserName}
+                    readOnly={readOnly}
+                    whatIfEligible={
+                      !!whatIfMode &&
+                      isWhatIfEligibleSeries(matchup, whatIfMode.eligibleSeriesIds)
+                    }
                   />
                 </div>
               )
@@ -520,10 +627,15 @@ export function PlayoffBracketVisual({
                   <MatchupBox
                     series={matchup}
                     prediction={prediction}
-                    onClick={() => handleSeriesClick(matchup)}
+                    onClick={() => handleBracketClick(matchup)}
                     isAdmin={isAdmin}
                     isViewingOtherUser={isViewingOtherUser}
                     viewingUserName={viewingUserName}
+                    readOnly={readOnly}
+                    whatIfEligible={
+                      !!whatIfMode &&
+                      isWhatIfEligibleSeries(matchup, whatIfMode.eligibleSeriesIds)
+                    }
                   />
                 </div>
               )
@@ -547,10 +659,18 @@ export function PlayoffBracketVisual({
                     : String(p.seriesId)
                   return seriesId === finalWestConf._id?.toString()
                 })}
-                onClick={() => handleSeriesClick(finalWestConf)}
+                onClick={() => handleBracketClick(finalWestConf)}
                 isAdmin={isAdmin}
                 isViewingOtherUser={isViewingOtherUser}
                 viewingUserName={viewingUserName}
+                readOnly={readOnly}
+                whatIfEligible={
+                  !!whatIfMode &&
+                  isWhatIfEligibleSeries(
+                    finalWestConf,
+                    whatIfMode.eligibleSeriesIds
+                  )
+                }
               />
             </div>
           </div>
@@ -572,10 +692,15 @@ export function PlayoffBracketVisual({
                     : String(p.seriesId)
                   return seriesId === finalNBA._id?.toString()
                 })}
-                onClick={() => handleSeriesClick(finalNBA)}
+                onClick={() => handleBracketClick(finalNBA)}
                 isAdmin={isAdmin}
                 isViewingOtherUser={isViewingOtherUser}
                 viewingUserName={viewingUserName}
+                readOnly={readOnly}
+                whatIfEligible={
+                  !!whatIfMode &&
+                  isWhatIfEligibleSeries(finalNBA, whatIfMode.eligibleSeriesIds)
+                }
               />
             </div>
           </div>
@@ -597,10 +722,18 @@ export function PlayoffBracketVisual({
                     : String(p.seriesId)
                   return seriesId === finalEastConf._id?.toString()
                 })}
-                onClick={() => handleSeriesClick(finalEastConf)}
+                onClick={() => handleBracketClick(finalEastConf)}
                 isAdmin={isAdmin}
                 isViewingOtherUser={isViewingOtherUser}
                 viewingUserName={viewingUserName}
+                readOnly={readOnly}
+                whatIfEligible={
+                  !!whatIfMode &&
+                  isWhatIfEligibleSeries(
+                    finalEastConf,
+                    whatIfMode.eligibleSeriesIds
+                  )
+                }
               />
             </div>
           </div>
@@ -624,10 +757,15 @@ export function PlayoffBracketVisual({
                   <MatchupBox
                     series={matchup}
                     prediction={prediction}
-                    onClick={() => handleSeriesClick(matchup)}
+                    onClick={() => handleBracketClick(matchup)}
                     isAdmin={isAdmin}
                     isViewingOtherUser={isViewingOtherUser}
                     viewingUserName={viewingUserName}
+                    readOnly={readOnly}
+                    whatIfEligible={
+                      !!whatIfMode &&
+                      isWhatIfEligibleSeries(matchup, whatIfMode.eligibleSeriesIds)
+                    }
                   />
                 </div>
               )
@@ -656,10 +794,15 @@ export function PlayoffBracketVisual({
                   <MatchupBox
                     series={matchup}
                     prediction={prediction}
-                    onClick={() => handleSeriesClick(matchup)}
+                    onClick={() => handleBracketClick(matchup)}
                     isAdmin={isAdmin}
                     isViewingOtherUser={isViewingOtherUser}
                     viewingUserName={viewingUserName}
+                    readOnly={readOnly}
+                    whatIfEligible={
+                      !!whatIfMode &&
+                      isWhatIfEligibleSeries(matchup, whatIfMode.eligibleSeriesIds)
+                    }
                   />
                 </div>
               )
@@ -711,6 +854,29 @@ export function PlayoffBracketVisual({
             onSave={handleSavePrediction}
           />
         ) : null}
+
+        {whatIfMode && whatIfDialogSeries ? (
+          <PredictionModal
+            series={seriesToISeriesForWhatIfModal(whatIfDialogSeries)}
+            isOpen={true}
+            onClose={() => setWhatIfDialogSeries(null)}
+            onSave={async (pred) => {
+              whatIfMode.onHypoSelect(
+                pred.seriesId,
+                pred.predictedScore.team1Wins,
+                pred.predictedScore.team2Wins
+              )
+              setWhatIfDialogSeries(null)
+            }}
+            simulationMode
+            initialSimulatedScore={
+              whatIfMode.hypoScores[String(whatIfDialogSeries._id)] ?? null
+            }
+            onClearSimulation={() => {
+              whatIfMode.onHypoClear(String(whatIfDialogSeries._id))
+            }}
+          />
+        ) : null}
       </div>
     </div>
   )
@@ -724,6 +890,8 @@ function MatchupBox({
   isAdmin = false,
   isViewingOtherUser = false,
   viewingUserName,
+  readOnly = false,
+  whatIfEligible = false,
 }: {
   series: Series
   prediction?: IPrediction
@@ -731,6 +899,8 @@ function MatchupBox({
   isAdmin?: boolean
   isViewingOtherUser?: boolean
   viewingUserName?: string
+  readOnly?: boolean
+  whatIfEligible?: boolean
 }) {
   const team1Wins = series.currentScore?.team1Wins || 0
   const team2Wins = series.currentScore?.team2Wins || 0
@@ -753,7 +923,11 @@ function MatchupBox({
   const hasScore = isLockedByTime && series.currentScore !== undefined
   // Admins can always click, regular users can only click if teams are set and not locked (by time or winner)
   // When viewing another user, disable clicking
-  const canClick = !isViewingOtherUser && (isAdmin || (teamsSet && !isLockedByTime && !isLockedByWinner))
+  const canClick =
+    (whatIfEligible && teamsSet) ||
+    (!readOnly &&
+      !isViewingOtherUser &&
+      (isAdmin || (teamsSet && !isLockedByTime && !isLockedByWinner)))
   
   // Lock visibility logic (matching Play-In behavior):
   // - Big lock: Only when teams are NOT set (for non-admin users)
@@ -765,6 +939,11 @@ function MatchupBox({
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    if (whatIfEligible && teamsSet) {
+      onClick?.()
+      return
+    }
+    if (readOnly) return
     // Admins can always click, regular users need teams set and not locked by time
     if (!isAdmin) {
       if (!teamsSet) {
@@ -782,18 +961,24 @@ function MatchupBox({
 
   return (
     <div
-      className={`relative flex flex-col gap-1 w-full max-w-[160px] md:max-w-[200px] ${
-        canClick ? "cursor-pointer hover:opacity-80 transition-opacity" : ""
-      }`}
+      className={cn(
+        "relative flex flex-col gap-1 w-full max-w-[160px] md:max-w-[200px]",
+        canClick && "cursor-pointer hover:opacity-80 transition-opacity",
+        whatIfEligible &&
+          teamsSet &&
+          "rounded-md p-0.5 ring-2 ring-amber-500 dark:ring-amber-400 ring-offset-2 ring-offset-background shadow-sm"
+      )}
       onClick={canClick ? handleClick : undefined}
       title={
-        canClick
-          ? undefined
-          : !teamsSet
-            ? "Both teams must be set before making a prediction"
-            : isLockedByWinner
-              ? "This series is locked. A winner has already been determined."
-              : "This series is locked. Predictions cannot be made after the deadline."
+        whatIfEligible && teamsSet
+          ? "Click to set a simulated final score (not saved)"
+          : canClick
+            ? undefined
+            : !teamsSet
+              ? "Both teams must be set before making a prediction"
+              : isLockedByWinner
+                ? "This series is locked. A winner has already been determined."
+                : "This series is locked. Predictions cannot be made after the deadline."
       }
     >
       <div className={showBigLock ? "opacity-40" : ""}>

@@ -32,6 +32,7 @@ export function Nav() {
     { href: "/bracket", label: "Bracket" },
     { href: "/analytics", label: "Analytics" },
     { href: "/standings", label: "Standings" },
+    { href: "/what-if", label: "What if" },
     { href: "/rules", label: "Rules" },
   ]
 

@@ -14,6 +14,7 @@ interface PlayInBracketVisualProps {
   isAdmin?: boolean
   isViewingOtherUser?: boolean
   viewingUserName?: string
+  readOnly?: boolean
 }
 
 export function PlayInBracketVisual({
@@ -23,6 +24,7 @@ export function PlayInBracketVisual({
   isAdmin = false,
   isViewingOtherUser = false,
   viewingUserName,
+  readOnly = false,
 }: PlayInBracketVisualProps) {
   // Helper function to get or create placeholder game
   const getPlayInGame = (
@@ -79,6 +81,7 @@ export function PlayInBracketVisual({
             isAdmin={isAdmin}
             isViewingOtherUser={isViewingOtherUser}
             viewingUserName={viewingUserName}
+            readOnly={readOnly}
           />
         </div>
 
@@ -94,6 +97,7 @@ export function PlayInBracketVisual({
             isAdmin={isAdmin}
             isViewingOtherUser={isViewingOtherUser}
             viewingUserName={viewingUserName}
+            readOnly={readOnly}
           />
         </div>
       </div>
@@ -108,6 +112,7 @@ function PlayInConferenceBracket({
   isAdmin,
   isViewingOtherUser,
   viewingUserName,
+  readOnly = false,
 }: {
   games: {
     "7-8": IPlayInGame
@@ -119,6 +124,7 @@ function PlayInConferenceBracket({
   isAdmin: boolean
   isViewingOtherUser: boolean
   viewingUserName?: string
+  readOnly?: boolean
 }) {
   return (
     <div className="relative space-y-6">
@@ -144,6 +150,7 @@ function PlayInConferenceBracket({
               isAdmin={isAdmin}
               isViewingOtherUser={isViewingOtherUser}
               viewingUserName={viewingUserName}
+              readOnly={readOnly}
             />
           </div>
           <div className="text-xs text-muted-foreground mt-2 text-center">
@@ -174,6 +181,7 @@ function PlayInConferenceBracket({
               isAdmin={isAdmin}
               isViewingOtherUser={isViewingOtherUser}
               viewingUserName={viewingUserName}
+              readOnly={readOnly}
             />
           </div>
           <div className="text-xs text-muted-foreground mt-2 text-center">
@@ -202,6 +210,7 @@ function PlayInConferenceBracket({
               isAdmin={isAdmin}
               isViewingOtherUser={isViewingOtherUser}
               viewingUserName={viewingUserName}
+              readOnly={readOnly}
             />
           </div>
         <div className="text-xs text-muted-foreground mt-2 text-center">
@@ -219,6 +228,7 @@ function PlayInGameBox({
   isAdmin,
   isViewingOtherUser,
   viewingUserName,
+  readOnly = false,
 }: {
   game: IPlayInGame
   prediction?: IPrediction
@@ -226,6 +236,7 @@ function PlayInGameBox({
   isAdmin: boolean
   isViewingOtherUser: boolean
   viewingUserName?: string
+  readOnly?: boolean
 }) {
   // Check if this is Game 1 or Game 2 (not Game 3/final)
   const isGame1Or2 = game.gameType === "east-7-8" || game.gameType === "east-9-10" || 
@@ -282,7 +293,11 @@ function PlayInGameBox({
   const isLocked = !teamsSet || isLockedByTime || isLockedByWinner
   // Admins can always click, regular users can only click if teams are set and not locked (by time or winner)
   // When viewing another user, disable clicking
-  const canClick = !isViewingOtherUser && onClick && (isAdmin || (teamsSet && !isLockedByTime && !isLockedByWinner))
+  const canClick =
+    !readOnly &&
+    !isViewingOtherUser &&
+    onClick &&
+    (isAdmin || (teamsSet && !isLockedByTime && !isLockedByWinner))
   
   // Lock visibility logic:
   // - Big lock: Only when teams are NOT set (for non-admin users)

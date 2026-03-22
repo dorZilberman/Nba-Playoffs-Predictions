@@ -1,6 +1,9 @@
 "use client"
 
-import { PlayoffBracketVisual } from "./PlayoffBracketVisual"
+import {
+  PlayoffBracketVisual,
+  type WhatIfBracketMode,
+} from "./PlayoffBracketVisual"
 import type { IPrediction } from "@/app/lib/models/Prediction"
 import type { ISeries } from "@/app/lib/models/Series"
 
@@ -31,6 +34,8 @@ interface PlayoffBracketProps {
   }) => Promise<void>
   isViewingOtherUser?: boolean
   viewingUserName?: string
+  readOnly?: boolean
+  whatIfMode?: WhatIfBracketMode
 }
 
 export function PlayoffBracket({
@@ -39,6 +44,8 @@ export function PlayoffBracket({
   onPredictionSave,
   isViewingOtherUser = false,
   viewingUserName,
+  readOnly = false,
+  whatIfMode,
 }: PlayoffBracketProps) {
   return (
     <PlayoffBracketVisual
@@ -47,6 +54,8 @@ export function PlayoffBracket({
       onPredictionSave={onPredictionSave}
       isViewingOtherUser={isViewingOtherUser}
       viewingUserName={viewingUserName}
+      readOnly={readOnly}
+      whatIfMode={whatIfMode}
     />
   )
 }
