@@ -11,6 +11,7 @@ import type {
   EarlyFinalsAnalyticsBlock,
   GameAnalytics,
 } from "@/app/api/analytics/route"
+import { teamPrimaryColorOrFallback } from "@/app/lib/teamPrimaryColor"
 import {
   type AnalyticsViewMode,
   EarlyFinalsColumns,
@@ -18,6 +19,7 @@ import {
   GameAnalyticsWinnerColumns,
   GameAnalyticsWinnerPie,
 } from "@/components/analytics/AnalyticsChartViews"
+import { useTeams } from "@/components/teams-provider"
 import { Check } from "lucide-react"
 
 type RoundType =
@@ -189,6 +191,7 @@ function EarlyFinalsBlockCard({
   block: EarlyFinalsAnalyticsBlock
   viewMode: AnalyticsViewMode
 }) {
+  const { getTeamByName } = useTeams()
   return (
     <Card>
       <CardHeader>
@@ -213,7 +216,7 @@ function EarlyFinalsBlockCard({
               </p>
             ) : (
               <div className="space-y-4">
-                {block.picks.map((row) => (
+                {block.picks.map((row, i) => (
                   <div key={row.teamName} className="space-y-1.5">
                     <div className="flex items-center justify-between gap-2 text-sm">
                       <span className="flex items-center gap-2 min-w-0">
@@ -228,8 +231,15 @@ function EarlyFinalsBlockCard({
                     </div>
                     <div className="w-full bg-muted rounded-full h-2">
                       <div
-                        className="bg-primary h-2 rounded-full transition-all"
-                        style={{ width: `${row.percentage}%` }}
+                        className="h-2 rounded-full transition-all"
+                        style={{
+                          width: `${row.percentage}%`,
+                          backgroundColor: teamPrimaryColorOrFallback(
+                            row.teamName,
+                            getTeamByName,
+                            i
+                          ),
+                        }}
                       />
                     </div>
                     {row.users.length > 0 && (
@@ -259,6 +269,7 @@ function GameAnalyticsCard({
   game: GameAnalytics
   viewMode: AnalyticsViewMode
 }) {
+  const { getTeamByName } = useTeams()
   const getRoundLabel = () => {
     if (game.gameType === "playin") {
       if (game.conference === "east") return "East Play-In"
@@ -326,8 +337,15 @@ function GameAnalyticsCard({
             {/* Progress bar */}
             <div className="w-full bg-muted rounded-full h-2">
               <div
-                className="bg-primary h-2 rounded-full transition-all"
-                style={{ width: `${game.team1Percentage}%` }}
+                className="h-2 rounded-full transition-all"
+                style={{
+                  width: `${game.team1Percentage}%`,
+                  backgroundColor: teamPrimaryColorOrFallback(
+                    game.team1,
+                    getTeamByName,
+                    0
+                  ),
+                }}
               />
             </div>
             {/* Score breakdown (for playoff series only) */}
@@ -417,8 +435,15 @@ function GameAnalyticsCard({
             {/* Progress bar */}
             <div className="w-full bg-muted rounded-full h-2">
               <div
-                className="bg-primary h-2 rounded-full transition-all"
-                style={{ width: `${game.team2Percentage}%` }}
+                className="h-2 rounded-full transition-all"
+                style={{
+                  width: `${game.team2Percentage}%`,
+                  backgroundColor: teamPrimaryColorOrFallback(
+                    game.team2,
+                    getTeamByName,
+                    1
+                  ),
+                }}
               />
             </div>
             {/* Score breakdown (for playoff series only) */}

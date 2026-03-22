@@ -16,32 +16,10 @@ import type {
   EarlyFinalsPickRow,
   GameAnalytics,
 } from "@/app/api/analytics/route"
+import { teamPrimaryColorOrFallback } from "@/app/lib/teamPrimaryColor"
 import { useTeams } from "@/components/teams-provider"
 
 export type AnalyticsViewMode = "list" | "pie" | "columns"
-
-const CHART_COLORS = [
-  "hsl(var(--primary))",
-  "hsl(221.2 83.2% 53.3%)",
-  "hsl(142.1 76.2% 36.3%)",
-  "hsl(38 92% 50%)",
-  "hsl(280 65% 60%)",
-  "hsl(340 75% 55%)",
-  "hsl(199 89% 48%)",
-  "hsl(24 95% 53%)",
-]
-
-const HEX_PRIMARY = /^#[0-9A-Fa-f]{6}$/
-
-function fillForTeamName(
-  teamName: string,
-  getTeamByName: (name: string) => { primaryColor?: string } | null,
-  fallbackIndex: number
-): string {
-  const hex = getTeamByName(teamName)?.primaryColor
-  if (hex && HEX_PRIMARY.test(hex)) return hex
-  return CHART_COLORS[fallbackIndex % CHART_COLORS.length]
-}
 
 function truncateLabel(s: string, max = 22) {
   if (s.length <= max) return s
@@ -90,12 +68,14 @@ function AnalyticsPickTooltip({
   pickedByLabel,
 }: {
   active?: boolean
-  payload?: ReadonlyArray<{ payload: AnalyticsChartRow }>
+  /** Recharts marks nested `payload` optional; we narrow at runtime. */
+  payload?: ReadonlyArray<{ payload?: AnalyticsChartRow }>
   total: number
   pickedByLabel: string
 }) {
   if (!active || !payload?.length) return null
-  const row = payload[0].payload
+  const row = payload[0]?.payload
+  if (!row) return null
   const pct = total > 0 ? Math.round((row.value / total) * 100) : 0
   return (
     <div className="rounded-md border border-border bg-card px-3 py-2 text-sm text-card-foreground shadow-md max-w-[min(100vw-2rem,320px)]">
@@ -146,14 +126,15 @@ export function GameAnalyticsWinnerPie({ game }: { game: GameAnalytics }) {
             {data.map((row, i) => (
               <Cell
                 key={i}
-                fill={fillForTeamName(row.fullName, getTeamByName, i)}
+                fill={teamPrimaryColorOrFallback(row.fullName, getTeamByName, i)}
               />
             ))}
           </Pie>
           <Tooltip
-            content={(props) => (
+            content={({ active, payload }) => (
               <AnalyticsPickTooltip
-                {...props}
+                active={active}
+                payload={payload}
                 total={game.totalPredictions}
                 pickedByLabel="Selected by"
               />
@@ -190,9 +171,10 @@ export function GameAnalyticsWinnerColumns({ game }: { game: GameAnalytics }) {
             tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
           />
           <Tooltip
-            content={(props) => (
+            content={({ active, payload }) => (
               <AnalyticsPickTooltip
-                {...props}
+                active={active}
+                payload={payload}
                 total={game.totalPredictions}
                 pickedByLabel="Selected by"
               />
@@ -202,7 +184,7 @@ export function GameAnalyticsWinnerColumns({ game }: { game: GameAnalytics }) {
             {data.map((row, i) => (
               <Cell
                 key={i}
-                fill={fillForTeamName(row.fullName, getTeamByName, i)}
+                fill={teamPrimaryColorOrFallback(row.fullName, getTeamByName, i)}
               />
             ))}
           </Bar>
@@ -236,14 +218,15 @@ export function EarlyFinalsPie({ picks }: { picks: EarlyFinalsPickRow[] }) {
             {data.map((row, i) => (
               <Cell
                 key={i}
-                fill={fillForTeamName(row.fullName, getTeamByName, i)}
+                fill={teamPrimaryColorOrFallback(row.fullName, getTeamByName, i)}
               />
             ))}
           </Pie>
           <Tooltip
-            content={(props) => (
+            content={({ active, payload }) => (
               <AnalyticsPickTooltip
-                {...props}
+                active={active}
+                payload={payload}
                 total={total}
                 pickedByLabel="Picked by"
               />
@@ -281,9 +264,10 @@ export function EarlyFinalsColumns({ picks }: { picks: EarlyFinalsPickRow[] }) {
             tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
           />
           <Tooltip
-            content={(props) => (
+            content={({ active, payload }) => (
               <AnalyticsPickTooltip
-                {...props}
+                active={active}
+                payload={payload}
                 total={total}
                 pickedByLabel="Picked by"
               />
@@ -293,7 +277,7 @@ export function EarlyFinalsColumns({ picks }: { picks: EarlyFinalsPickRow[] }) {
             {data.map((row, i) => (
               <Cell
                 key={i}
-                fill={fillForTeamName(row.fullName, getTeamByName, i)}
+                fill={teamPrimaryColorOrFallback(row.fullName, getTeamByName, i)}
               />
             ))}
           </Bar>
