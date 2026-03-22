@@ -6,6 +6,8 @@ export interface ITeam {
   conference: "east" | "west"
   seed?: number
   logoUrl: string
+  /** Main brand color as #RRGGBB (used in charts, etc.) */
+  primaryColor?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -30,6 +32,10 @@ const TeamSchema = new Schema<ITeam>(
     logoUrl: {
       type: String,
       required: true,
+    },
+    primaryColor: {
+      type: String,
+      match: /^#[0-9A-Fa-f]{6}$/,
     },
   },
   {

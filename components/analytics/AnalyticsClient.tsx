@@ -11,6 +11,13 @@ import type {
   EarlyFinalsAnalyticsBlock,
   GameAnalytics,
 } from "@/app/api/analytics/route"
+import {
+  type AnalyticsViewMode,
+  EarlyFinalsColumns,
+  EarlyFinalsPie,
+  GameAnalyticsWinnerColumns,
+  GameAnalyticsWinnerPie,
+} from "@/components/analytics/AnalyticsChartViews"
 import { Check } from "lucide-react"
 
 type RoundType =
@@ -42,6 +49,8 @@ export function AnalyticsClient() {
   const [items, setItems] = useState<AnalyticsItem[]>([])
   const [loading, setLoading] = useState(true)
   const [earlyFinalsNoSeason, setEarlyFinalsNoSeason] = useState(false)
+  const [analyticsView, setAnalyticsView] =
+    useState<AnalyticsViewMode>("list")
 
   const fetchAnalytics = useCallback(async (round: RoundType) => {
     setLoading(true)
@@ -78,6 +87,10 @@ export function AnalyticsClient() {
     fetchAnalytics(selectedRound)
   }, [selectedRound, fetchAnalytics])
 
+  useEffect(() => {
+    setAnalyticsView("list")
+  }, [selectedRound])
+
   const rounds: RoundType[] = [
     "early-finals",
     "playin",
@@ -105,6 +118,30 @@ export function AnalyticsClient() {
         ))}
       </div>
 
+      {!loading && items.length > 0 && !earlyFinalsNoSeason && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted-foreground shrink-0">Display:</span>
+          {(
+            [
+              ["list", "List"],
+              ["pie", "Pie charts"],
+              ["columns", "Column charts"],
+            ] as const
+          ).map(([mode, label]) => (
+            <Button
+              key={mode}
+              type="button"
+              size="sm"
+              variant={analyticsView === mode ? "default" : "outline"}
+              className="h-8"
+              onClick={() => setAnalyticsView(mode)}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+      )}
+
       {/* Analytics Content */}
       {loading ? (
         <div className="text-center py-8 text-muted-foreground">
@@ -121,14 +158,22 @@ export function AnalyticsClient() {
       ) : selectedRound === "early-finals" ? (
         <div className="grid gap-4 lg:grid-cols-1">
           {items.filter(isEarlyFinalsBlock).map((block) => (
-            <EarlyFinalsBlockCard key={block.gameId} block={block} />
+            <EarlyFinalsBlockCard
+              key={block.gameId}
+              block={block}
+              viewMode={analyticsView}
+            />
           ))}
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {items.map((game) =>
             isEarlyFinalsBlock(game) ? null : (
-              <GameAnalyticsCard key={game.gameId} game={game} />
+              <GameAnalyticsCard
+                key={game.gameId}
+                game={game}
+                viewMode={analyticsView}
+              />
             )
           )}
         </div>
@@ -137,7 +182,13 @@ export function AnalyticsClient() {
   )
 }
 
-function EarlyFinalsBlockCard({ block }: { block: EarlyFinalsAnalyticsBlock }) {
+function EarlyFinalsBlockCard({
+  block,
+  viewMode,
+}: {
+  block: EarlyFinalsAnalyticsBlock
+  viewMode: AnalyticsViewMode
+}) {
   return (
     <Card>
       <CardHeader>
@@ -152,40 +203,46 @@ function EarlyFinalsBlockCard({ block }: { block: EarlyFinalsAnalyticsBlock }) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {block.picks.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No picks submitted yet.
-          </p>
-        ) : (
-          <div className="space-y-4">
-            {block.picks.map((row) => (
-              <div key={row.teamName} className="space-y-1.5">
-                <div className="flex items-center justify-between gap-2 text-sm">
-                  <span className="flex items-center gap-2 min-w-0">
-                    <TeamDisplay teamName={row.teamName} size="sm" showName />
-                  </span>
-                  <span className="shrink-0 text-muted-foreground">
-                    {row.count}{" "}
-                    <span className="text-xs">
-                      ({row.percentage}%)
-                    </span>
-                  </span>
-                </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div
-                    className="bg-primary h-2 rounded-full transition-all"
-                    style={{ width: `${row.percentage}%` }}
-                  />
-                </div>
-                {row.users.length > 0 && (
-                  <div className="text-xs text-muted-foreground pl-0.5">
-                    <span className="font-medium">Picked by: </span>
-                    {row.users.map((u) => u.name).join(", ")}
+        {viewMode === "pie" && <EarlyFinalsPie picks={block.picks} />}
+        {viewMode === "columns" && <EarlyFinalsColumns picks={block.picks} />}
+        {viewMode === "list" && (
+          <>
+            {block.picks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No picks submitted yet.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {block.picks.map((row) => (
+                  <div key={row.teamName} className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2 text-sm">
+                      <span className="flex items-center gap-2 min-w-0">
+                        <TeamDisplay teamName={row.teamName} size="sm" showName />
+                      </span>
+                      <span className="shrink-0 text-muted-foreground">
+                        {row.count}{" "}
+                        <span className="text-xs">
+                          ({row.percentage}%)
+                        </span>
+                      </span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div
+                        className="bg-primary h-2 rounded-full transition-all"
+                        style={{ width: `${row.percentage}%` }}
+                      />
+                    </div>
+                    {row.users.length > 0 && (
+                      <div className="text-xs text-muted-foreground pl-0.5">
+                        <span className="font-medium">Picked by: </span>
+                        {row.users.map((u) => u.name).join(", ")}
+                      </div>
+                    )}
                   </div>
-                )}
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
         <div className="pt-2 border-t text-center text-sm text-muted-foreground">
           Submissions: {block.totalPredictions}
@@ -195,7 +252,13 @@ function EarlyFinalsBlockCard({ block }: { block: EarlyFinalsAnalyticsBlock }) {
   )
 }
 
-function GameAnalyticsCard({ game }: { game: GameAnalytics }) {
+function GameAnalyticsCard({
+  game,
+  viewMode,
+}: {
+  game: GameAnalytics
+  viewMode: AnalyticsViewMode
+}) {
   const getRoundLabel = () => {
     if (game.gameType === "playin") {
       if (game.conference === "east") return "East Play-In"
@@ -236,7 +299,11 @@ function GameAnalyticsCard({ game }: { game: GameAnalytics }) {
         )}
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Teams */}
+        {viewMode === "pie" && <GameAnalyticsWinnerPie game={game} />}
+        {viewMode === "columns" && (
+          <GameAnalyticsWinnerColumns game={game} />
+        )}
+        {viewMode === "list" && (
         <div className="space-y-3">
           {/* Team 1 */}
           <div className="space-y-2">
@@ -418,6 +485,7 @@ function GameAnalyticsCard({ game }: { game: GameAnalytics }) {
             )}
           </div>
         </div>
+        )}
 
         {/* Total predictions */}
         <div className="pt-2 border-t text-center text-sm text-muted-foreground">
