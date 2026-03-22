@@ -411,15 +411,12 @@ export function EarlyFinalsPredictionsSection({
 
   return (
     <div className="space-y-6">
-      {data.earlyFinalsLockTime && (
+      {data.earlyFinalsLockTime && !data.locked && (
         <div className="space-y-1">
           <div className="text-xs text-muted-foreground">
             Prediction Deadline at: {formatToIST(data.earlyFinalsLockTime)}
           </div>
-          <LockCountdown
-            lockAt={data.earlyFinalsLockTime}
-            hide={data.locked}
-          />
+          <LockCountdown lockAt={data.earlyFinalsLockTime} hide={false} />
         </div>
       )}
 
