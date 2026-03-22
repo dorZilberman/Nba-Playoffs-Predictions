@@ -207,7 +207,7 @@ export function PredictionModal({
                 disabled={locked}
                 className="h-auto min-h-[64px] flex flex-col items-center justify-center gap-2 p-3"
               >
-                <TeamDisplay teamName={series.team1} size="sm" />
+                <TeamDisplay teamName={series.team1} size="sm" showName={false} />
                 <div className="font-semibold text-xs text-center break-words">{series.team1}</div>
                 {selectedWinner === series.team1 && (
                   <Check className="h-5 w-5 mt-1 shrink-0" />
@@ -220,7 +220,7 @@ export function PredictionModal({
                 disabled={locked}
                 className="h-auto min-h-[64px] flex flex-col items-center justify-center gap-2 p-3"
               >
-                <TeamDisplay teamName={series.team2} size="sm" />
+                <TeamDisplay teamName={series.team2} size="sm" showName={false} />
                 <div className="font-semibold text-xs text-center break-words">{series.team2}</div>
                 {selectedWinner === series.team2 && (
                   <Check className="h-5 w-5 mt-1 shrink-0" />
