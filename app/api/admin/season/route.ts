@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    return NextResponse.json(serializeSeason(season))
+    return NextResponse.json(serializeSeason(season as SeasonCollectionDoc))
   } catch (error) {
     console.error("Error fetching season:", error)
     return NextResponse.json(
