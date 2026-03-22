@@ -821,8 +821,10 @@ export function PlayoffBracketVisual({
           </div>
         </div>
 
-        {/* Mobile: Single round at a time with smooth animation */}
-        <div className="md:hidden relative overflow-hidden min-h-[400px]">
+        {/* Mobile: Single round at a time with smooth animation.
+            Use overflow-x-hidden only — overflow-hidden clips ring-offset / shadows
+            on what-if eligible cells and the bottom row of first round. */}
+        <div className="md:hidden relative min-h-[400px] w-full overflow-x-hidden pb-2">
           <div
             className="flex transition-transform duration-500 ease-in-out"
             style={{
@@ -832,7 +834,7 @@ export function PlayoffBracketVisual({
             {roundButtons.map((btn) => (
               <div
                 key={btn.value}
-                className="w-full flex-shrink-0 grid grid-cols-2 gap-4 px-2"
+                className="w-full flex-shrink-0 grid grid-cols-2 gap-4 px-2 pb-8 pt-1 items-start"
               >
                 {renderRoundContent(btn.value)}
               </div>
