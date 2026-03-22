@@ -36,6 +36,7 @@ interface PlayoffBracketProps {
   viewingUserName?: string
   readOnly?: boolean
   whatIfMode?: WhatIfBracketMode
+  embedded?: boolean
 }
 
 export function PlayoffBracket({
@@ -46,6 +47,7 @@ export function PlayoffBracket({
   viewingUserName,
   readOnly = false,
   whatIfMode,
+  embedded = false,
 }: PlayoffBracketProps) {
   return (
     <PlayoffBracketVisual
@@ -56,6 +58,7 @@ export function PlayoffBracket({
       viewingUserName={viewingUserName}
       readOnly={readOnly}
       whatIfMode={whatIfMode}
+      embedded={embedded}
     />
   )
 }

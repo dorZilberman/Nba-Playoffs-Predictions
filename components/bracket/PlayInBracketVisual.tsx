@@ -15,6 +15,8 @@ interface PlayInBracketVisualProps {
   isViewingOtherUser?: boolean
   viewingUserName?: string
   readOnly?: boolean
+  /** Omit main section title and use parent chrome (e.g. collapsible section) */
+  embedded?: boolean
 }
 
 export function PlayInBracketVisual({
@@ -25,6 +27,7 @@ export function PlayInBracketVisual({
   isViewingOtherUser = false,
   viewingUserName,
   readOnly = false,
+  embedded = false,
 }: PlayInBracketVisualProps) {
   // Helper function to get or create placeholder game
   const getPlayInGame = (
@@ -64,9 +67,11 @@ export function PlayInBracketVisual({
 
   return (
     <div className="w-full">
-      <div className="text-center mb-6">
-        <h2 className="text-xl md:text-2xl font-bold">PLAY-IN TOURNAMENT</h2>
-      </div>
+      {!embedded && (
+        <div className="text-center mb-6">
+          <h2 className="text-xl md:text-2xl font-bold">PLAY-IN TOURNAMENT</h2>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Western Conference */}

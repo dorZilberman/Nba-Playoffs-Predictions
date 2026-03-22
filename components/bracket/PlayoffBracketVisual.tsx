@@ -84,6 +84,8 @@ interface PlayoffBracketVisualProps {
   readOnly?: boolean
   /** What-if page: highlight eligible matchups and open score picker on click */
   whatIfMode?: WhatIfBracketMode
+  /** Omit outer card, border, and main title (e.g. inside a collapsible section) */
+  embedded?: boolean
 }
 
 
@@ -97,6 +99,7 @@ export function PlayoffBracketVisual({
   viewingUserName,
   readOnly = false,
   whatIfMode,
+  embedded = false,
 }: PlayoffBracketVisualProps) {
   const [selectedSeries, setSelectedSeries] = useState<Series | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -546,11 +549,19 @@ export function PlayoffBracketVisual({
   }
 
   return (
-    <div className="w-full bg-background border rounded-lg p-4 md:p-6">
-      {/* Header */}
-      <div className="text-center mb-6">
-        <h2 className="text-xl md:text-2xl font-bold">PLAYOFFS</h2>
-      </div>
+    <div
+      className={cn(
+        "w-full",
+        embedded
+          ? "p-0"
+          : "bg-background border rounded-lg p-4 md:p-6"
+      )}
+    >
+      {!embedded && (
+        <div className="text-center mb-6">
+          <h2 className="text-xl md:text-2xl font-bold">PLAYOFFS</h2>
+        </div>
+      )}
 
       {/* Round Selector Buttons (Mobile Only) */}
       <div className="md:hidden mb-4 flex gap-2 overflow-x-auto pb-2">

@@ -5,6 +5,7 @@ import { PlayoffBracketVisual } from "@/components/bracket/PlayoffBracketVisual"
 import { AdminSeriesModal } from "./AdminSeriesModal"
 import { AdminPlayInModal } from "./AdminPlayInModal"
 import { PlayInBracketVisual } from "@/components/bracket/PlayInBracketVisual"
+import { CollapsibleSection } from "@/components/ui/collapsible-section"
 import type { ISeries } from "@/app/lib/models/Series"
 import type { IPlayInGame } from "@/app/lib/models/PlayInGame"
 
@@ -205,24 +206,24 @@ export function AdminBracketView() {
 
   return (
     <div className="w-full space-y-6">
-      {/* Play-In Games Section */}
-      <div className="bg-background border rounded-lg p-6">
+      <CollapsibleSection title="Play-In">
         <PlayInBracketVisual
+          embedded
           games={playInGames}
           onGameClick={handlePlayInClick}
           isAdmin={true}
         />
-      </div>
+      </CollapsibleSection>
 
-      {/* Playoff Bracket */}
-      <div className="bg-background border rounded-lg p-6">
+      <CollapsibleSection title="Playoffs">
         <PlayoffBracketVisual
+          embedded
           series={series}
           predictions={[]}
           onSeriesClick={handleSeriesClick}
           isAdmin={true}
         />
-      </div>
+      </CollapsibleSection>
 
       {/* Series Modal */}
       {selectedSeries && (

@@ -2,6 +2,7 @@
 
 import { PlayoffBracket } from "./PlayoffBracket"
 import { PlayInBracketVisual } from "./PlayInBracketVisual"
+import { CollapsibleSection } from "@/components/ui/collapsible-section"
 import { PlayInPredictionModal } from "./PlayInPredictionModal"
 import { useState, useEffect, useCallback } from "react"
 import type { ISeries } from "@/app/lib/models/Series"
@@ -165,9 +166,9 @@ export function NBABracketView({
 
   return (
     <div className="w-full space-y-6">
-      {/* Play-In Tournament Bracket */}
-      <div className="bg-background border rounded-lg p-6">
+      <CollapsibleSection title="Play-In">
         <PlayInBracketVisual
+          embedded
           games={playInGames}
           predictions={predictions}
           onGameClick={handlePlayInClick}
@@ -175,18 +176,18 @@ export function NBABracketView({
           isViewingOtherUser={isViewingOtherUser}
           viewingUserName={isViewingOtherUser ? viewingUserName : undefined}
         />
-      </div>
+      </CollapsibleSection>
 
-      {/* Playoff Bracket Structure */}
-      <div className="bg-background border rounded-lg p-6">
+      <CollapsibleSection title="Playoffs">
         <PlayoffBracket
+          embedded
           series={series}
           predictions={predictions}
           onPredictionSave={handlePredictionSave}
           isViewingOtherUser={isViewingOtherUser}
           viewingUserName={isViewingOtherUser ? viewingUserName : undefined}
         />
-      </div>
+      </CollapsibleSection>
 
       {/* Play-In Prediction Modal */}
       {selectedPlayIn && (
