@@ -65,7 +65,9 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    return NextResponse.json(serializeSeason(season as SeasonCollectionDoc))
+    return NextResponse.json(
+      serializeSeason(season as unknown as SeasonCollectionDoc)
+    )
   } catch (error) {
     console.error("Error fetching season:", error)
     return NextResponse.json(
@@ -119,7 +121,9 @@ export async function PATCH(request: NextRequest) {
         { status: 404 }
       )
     }
-    return NextResponse.json(serializeSeason(updated as SeasonCollectionDoc))
+    return NextResponse.json(
+      serializeSeason(updated as unknown as SeasonCollectionDoc)
+    )
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
