@@ -164,34 +164,6 @@ function EarlyFinalsChampionSlot({
           <>
             <div
               className={cn(canPick && "cursor-pointer hover:opacity-80 transition-opacity")}
-              onClick={() => rowClick(eastTeam)}
-              onKeyDown={
-                canPick
-                  ? (e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault()
-                        rowClick(eastTeam)
-                      }
-                    }
-                  : undefined
-              }
-              role={canPick ? "button" : undefined}
-              tabIndex={canPick ? 0 : undefined}
-            >
-              <BracketTeamBox
-                team={eastTeam}
-                isWinner={false}
-                wins={0}
-                hasScore={false}
-                hasPrediction={champion === eastTeam}
-                actualWinner={undefined}
-              />
-            </div>
-            <div className="text-center text-[8px] md:text-[9px] text-muted-foreground">
-              vs
-            </div>
-            <div
-              className={cn(canPick && "cursor-pointer hover:opacity-80 transition-opacity")}
               onClick={() => rowClick(westTeam)}
               onKeyDown={
                 canPick
@@ -212,6 +184,34 @@ function EarlyFinalsChampionSlot({
                 wins={0}
                 hasScore={false}
                 hasPrediction={champion === westTeam}
+                actualWinner={undefined}
+              />
+            </div>
+            <div className="text-center text-[8px] md:text-[9px] text-muted-foreground">
+              vs
+            </div>
+            <div
+              className={cn(canPick && "cursor-pointer hover:opacity-80 transition-opacity")}
+              onClick={() => rowClick(eastTeam)}
+              onKeyDown={
+                canPick
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault()
+                        rowClick(eastTeam)
+                      }
+                    }
+                  : undefined
+              }
+              role={canPick ? "button" : undefined}
+              tabIndex={canPick ? 0 : undefined}
+            >
+              <BracketTeamBox
+                team={eastTeam}
+                isWinner={false}
+                wins={0}
+                hasScore={false}
+                hasPrediction={champion === eastTeam}
                 actualWinner={undefined}
               />
             </div>
@@ -457,70 +457,81 @@ export function EarlyFinalsPredictionsSection({
       )}
 
       {showBracketStrip && (
-        <div className="flex flex-col md:flex-row flex-wrap md:flex-nowrap justify-center items-center gap-8 md:gap-4 lg:gap-8 w-full">
-          <ColumnChrome heading="Eastern Conference Champions">
-            <ConferenceChampionSlot
-              selectedTeam={
-                picksHiddenFromViewer
-                  ? null
-                  : editable
-                    ? east || null
-                    : eastVal || null
-              }
-              roundLocked={roundLocked}
-              canEditSlot={editable}
-              picksHiddenFromViewer={picksHiddenFromViewer}
-              onOpenPicker={() => setPicker("east")}
-            />
-          </ColumnChrome>
-
-          <ColumnChrome heading="NBA FINALS" headingTone="finals">
-            <div className="relative flex justify-center min-h-[1rem]">
-              <EarlyFinalsChampionSlot
-                westTeam={
+        <div
+          className={cn(
+            "grid w-full max-w-lg mx-auto grid-cols-2 gap-x-3 gap-y-6 justify-items-center",
+            "md:max-w-none md:mx-0 md:flex md:flex-row md:flex-nowrap md:justify-center md:items-center md:gap-4 lg:gap-8"
+          )}
+        >
+          <div className="min-w-0 flex justify-center w-full md:w-auto md:order-1">
+            <ColumnChrome heading="Western Conference Champions">
+              <ConferenceChampionSlot
+                selectedTeam={
                   picksHiddenFromViewer
                     ? null
                     : editable
                       ? west || null
                       : westVal || null
                 }
-                eastTeam={
+                roundLocked={roundLocked}
+                canEditSlot={editable}
+                picksHiddenFromViewer={picksHiddenFromViewer}
+                onOpenPicker={() => setPicker("west")}
+              />
+            </ColumnChrome>
+          </div>
+
+          <div className="min-w-0 flex justify-center w-full md:w-auto md:order-3">
+            <ColumnChrome heading="Eastern Conference Champions">
+              <ConferenceChampionSlot
+                selectedTeam={
                   picksHiddenFromViewer
                     ? null
                     : editable
                       ? east || null
                       : eastVal || null
                 }
-                champion={
-                  picksHiddenFromViewer
-                    ? null
-                    : editable
-                      ? champion || null
-                      : championVal || null
-                }
                 roundLocked={roundLocked}
                 canEditSlot={editable}
                 picksHiddenFromViewer={picksHiddenFromViewer}
-                onSelectChampion={setChampion}
+                onOpenPicker={() => setPicker("east")}
               />
-            </div>
-          </ColumnChrome>
+            </ColumnChrome>
+          </div>
 
-          <ColumnChrome heading="Western Conference Champions">
-            <ConferenceChampionSlot
-              selectedTeam={
-                picksHiddenFromViewer
-                  ? null
-                  : editable
-                    ? west || null
-                    : westVal || null
-              }
-              roundLocked={roundLocked}
-              canEditSlot={editable}
-              picksHiddenFromViewer={picksHiddenFromViewer}
-              onOpenPicker={() => setPicker("west")}
-            />
-          </ColumnChrome>
+          <div className="col-span-2 flex justify-center w-full md:col-span-1 md:order-2 md:w-auto">
+            <ColumnChrome heading="NBA FINALS" headingTone="finals">
+              <div className="relative flex justify-center min-h-[1rem]">
+                <EarlyFinalsChampionSlot
+                  westTeam={
+                    picksHiddenFromViewer
+                      ? null
+                      : editable
+                        ? west || null
+                        : westVal || null
+                  }
+                  eastTeam={
+                    picksHiddenFromViewer
+                      ? null
+                      : editable
+                        ? east || null
+                        : eastVal || null
+                  }
+                  champion={
+                    picksHiddenFromViewer
+                      ? null
+                      : editable
+                        ? champion || null
+                        : championVal || null
+                  }
+                  roundLocked={roundLocked}
+                  canEditSlot={editable}
+                  picksHiddenFromViewer={picksHiddenFromViewer}
+                  onSelectChampion={setChampion}
+                />
+              </div>
+            </ColumnChrome>
+          </div>
         </div>
       )}
 
