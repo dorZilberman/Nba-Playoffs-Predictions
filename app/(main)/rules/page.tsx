@@ -16,8 +16,25 @@ export default async function RulesPage() {
         <CardContent className="space-y-4">
           <p>
             Make your predictions for the 2026 NBA Playoffs! You can predict the
-            outcome of each playoff series and Play-In game.
+            outcome of each playoff series and Play-In game, plus an early finals
+            predictions round before the Play-In.
           </p>
+          <div>
+            <h3 className="font-semibold mb-2">Early Finals Predictions:</h3>
+            <ul className="list-disc list-inside space-y-1 text-sm">
+              <li>
+                Pick one team from the East and one from the West that you think
+                will win their conference and reach the NBA Finals
+              </li>
+              <li>
+                Then pick the NBA champion — it must be one of those two teams
+              </li>
+              <li>
+                You can edit your prediction as many times as you want until the
+                series locks
+              </li>
+            </ul>
+          </div>
           <div>
             <h3 className="font-semibold mb-2">For Playoff Series:</h3>
             <ul className="list-disc list-inside space-y-1 text-sm">
@@ -30,7 +47,10 @@ export default async function RulesPage() {
             <h3 className="font-semibold mb-2">For Play-In Games:</h3>
             <ul className="list-disc list-inside space-y-1 text-sm">
               <li>Simply select the winner of each Play-In game</li>
-              <li>You can edit your prediction until the game locks</li>
+              <li>
+                You can edit your prediction as many times as you want until the
+                game locks
+              </li>
             </ul>
           </div>
         </CardContent>
@@ -43,12 +63,17 @@ export default async function RulesPage() {
         <CardContent className="space-y-4">
           <p>
             Predictions lock individually per series or game. A series or game
-            locks when its start time arrives.
+            locks when its start time arrives. Early Finals predictions lock at
+            the start time of the first playoff game.
           </p>
           <div className="bg-muted p-4 rounded">
             <p className="text-sm">
               <strong>Lock Deadline:</strong> A series or Play-In game locks
               at the start time of the first game of that series/game.
+            </p>
+            <p className="text-sm mt-2">
+              <strong>Early Finals:</strong> Locks at the start time of the first
+              playoff game.
             </p>
           </div>
           <p className="text-sm text-muted-foreground">
@@ -63,6 +88,29 @@ export default async function RulesPage() {
           <CardTitle>Scoring System</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          <div>
+            <h3 className="font-semibold mb-3">Early Finals Predictions</h3>
+            <ul className="list-disc list-inside space-y-1 text-sm">
+              <li>
+                <strong>5 points</strong> for each conference finalist you
+                predict correctly (East champion and West champion from the
+                actual Conference Finals)
+              </li>
+              <li>
+                <strong>5 additional points</strong> if you also predict the
+                NBA Finals champion correctly
+              </li>
+              <li>
+                Maximum for this round: <strong>15 points</strong> (both
+                finalists + champion right)
+              </li>
+              <li>
+                Points are counted once the real Conference Finals and NBA Finals
+                have an official winner in the pool.
+              </li>
+            </ul>
+          </div>
+
           <div>
             <h3 className="font-semibold mb-3">Play-In Games</h3>
             <ul className="list-disc list-inside space-y-1 text-sm">
@@ -202,7 +250,9 @@ export default async function RulesPage() {
         <CardContent>
           <p className="text-sm">
             If you do not submit a prediction before a series or game locks, you
-            will receive <strong>0 points</strong> for that series/game.
+            will receive <strong>0 points</strong> for that series/game. The
+            same applies to Early Finals if you do not submit before that round
+            locks.
           </p>
         </CardContent>
       </Card>

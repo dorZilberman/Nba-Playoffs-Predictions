@@ -10,11 +10,17 @@ import {
   calculateSeriesScore,
   calculatePlayInScore,
 } from "@/app/lib/scoring/calculator"
+import {
+  calculateEarlyFinalsScore,
+  resolveFinalsOutcomesFromSeries,
+} from "@/app/lib/scoring/earlyFinals"
+import EarlyFinalsPrediction from "@/app/lib/models/EarlyFinalsPrediction"
 
 export interface UserStanding {
   userId: string
   userName: string
   totalScore: number
+  earlyFinalsScore: number
   playInScore: number
   firstRoundScore: number
   secondRoundScore: number
@@ -36,10 +42,35 @@ export async function GET(request: NextRequest) {
     const allSeries = await Series.find({ seasonId: season._id })
     const allPlayInGames = await PlayInGame.find({ seasonId: season._id })
     const allPredictions = await Prediction.find({})
+    const allEarlyFinals = await EarlyFinalsPrediction.find({
+      seasonId: season._id,
+    }).lean()
+
+    const finalsOutcomes = resolveFinalsOutcomesFromSeries(
+      allSeries.map((s) => ({
+        round: s.round,
+        conference: s.conference,
+        winner: s.winner,
+      }))
+    )
 
     const standings: UserStanding[] = users.map((user) => {
       const userPredictions = allPredictions.filter(
         (p) => p.userId.toString() === user._id.toString()
+      )
+
+      const earlyDoc = allEarlyFinals.find(
+        (e) => e.userId.toString() === user._id.toString()
+      )
+      const earlyFinalsScore = calculateEarlyFinalsScore(
+        earlyDoc
+          ? {
+              eastFinalist: earlyDoc.eastFinalist,
+              westFinalist: earlyDoc.westFinalist,
+              nbaChampion: earlyDoc.nbaChampion,
+            }
+          : null,
+        finalsOutcomes
       )
 
       let playInScore = 0
@@ -90,6 +121,7 @@ export async function GET(request: NextRequest) {
       })
 
       const totalScore =
+        earlyFinalsScore +
         playInScore +
         firstRoundScore +
         secondRoundScore +
@@ -100,6 +132,7 @@ export async function GET(request: NextRequest) {
         userId: user._id.toString(),
         userName: user.name,
         totalScore,
+        earlyFinalsScore,
         playInScore,
         firstRoundScore,
         secondRoundScore,

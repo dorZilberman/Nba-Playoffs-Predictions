@@ -23,6 +23,10 @@ import {
   calculatePlayInScore,
   calculateSeriesScore,
 } from "@/app/lib/scoring/calculator"
+import {
+  calculateEarlyFinalsScore,
+  resolveFinalsOutcomesFromSeries,
+} from "@/app/lib/scoring/earlyFinals"
 import { isSeriesLocked } from "@/app/lib/locking/lockChecker"
 import type { ISeries, RoundType } from "@/app/lib/models/Series"
 import type { IPlayInGame, PlayInGameType } from "@/app/lib/models/PlayInGame"
@@ -67,17 +71,26 @@ interface ApiPredictionRow {
   predictedScore?: { team1Wins: number; team2Wins: number }
 }
 
+interface ApiEarlyFinalsRow {
+  userId: string
+  eastFinalist: string
+  westFinalist: string
+  nbaChampion: string
+}
+
 interface WhatIfPayload {
   users: ApiUser[]
   series: ApiSeries[]
   playInGames: ApiPlayIn[]
   predictions: ApiPredictionRow[]
+  earlyFinals: ApiEarlyFinalsRow[]
 }
 
 export interface SimulatedStanding {
   userId: string
   userName: string
   totalScore: number
+  earlyFinalsScore: number
   playInScore: number
   firstRoundScore: number
   secondRoundScore: number
@@ -162,14 +175,47 @@ function rowToIPrediction(row: ApiPredictionRow): IPrediction {
   }
 }
 
+function mergedSeriesOutcomesForEarlyFinals(
+  series: ApiSeries[],
+  hypo: HypoScores
+) {
+  return series.map((s) => {
+    if (s.winner) {
+      return { round: s.round, conference: s.conference, winner: s.winner }
+    }
+    const h = hypo[s._id]
+    if (h && isValidSeriesScore(h.team1Wins, h.team2Wins)) {
+      const winner = h.team1Wins === 4 ? s.team1 : s.team2
+      return { round: s.round, conference: s.conference, winner }
+    }
+    return { round: s.round, conference: s.conference, winner: undefined }
+  })
+}
+
 function computeStandings(
   payload: WhatIfPayload,
   hypo: HypoScores
 ): SimulatedStanding[] {
   const seriesById = new Map(payload.series.map((s) => [s._id, s]))
   const playInById = new Map(payload.playInGames.map((g) => [g._id, g]))
+  const earlyRows = payload.earlyFinals ?? []
+  const finalsOutcomes = resolveFinalsOutcomesFromSeries(
+    mergedSeriesOutcomesForEarlyFinals(payload.series, hypo)
+  )
 
   const standings: SimulatedStanding[] = payload.users.map((user) => {
+    const earlyRow = earlyRows.find((e) => e.userId === user.userId)
+    const earlyFinalsScore = calculateEarlyFinalsScore(
+      earlyRow
+        ? {
+            eastFinalist: earlyRow.eastFinalist,
+            westFinalist: earlyRow.westFinalist,
+            nbaChampion: earlyRow.nbaChampion,
+          }
+        : null,
+      finalsOutcomes
+    )
+
     let playInScore = 0
     let firstRoundScore = 0
     let secondRoundScore = 0
@@ -222,6 +268,7 @@ function computeStandings(
     }
 
     const totalScore =
+      earlyFinalsScore +
       playInScore +
       firstRoundScore +
       secondRoundScore +
@@ -232,6 +279,7 @@ function computeStandings(
       userId: user.userId,
       userName: user.userName,
       totalScore,
+      earlyFinalsScore,
       playInScore,
       firstRoundScore,
       secondRoundScore,
@@ -246,6 +294,7 @@ function computeStandings(
 
 type SortField =
   | "totalScore"
+  | "earlyFinalsScore"
   | "playInScore"
   | "firstRoundScore"
   | "secondRoundScore"
@@ -291,7 +340,10 @@ export function WhatIfClient() {
         throw new Error("Failed to load simulation data")
       }
       const data = (await res.json()) as WhatIfPayload
-      setPayload(data)
+      setPayload({
+        ...data,
+        earlyFinals: data.earlyFinals ?? [],
+      })
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load")
     } finally {
@@ -410,9 +462,9 @@ export function WhatIfClient() {
           Use this page to see how the standings might look if undecided series
           ended a certain way. Trial scores stay here in your browser—they are
           not saved and do not change your real bracket picks or the live
-          standings everyone sees.           On the playoff bracket, click highlighted matchups (past lock time,
-          no official winner yet) to enter trial scores—the simulated
-          standings update as you go.
+          standings everyone sees. On the playoff bracket, click highlighted
+          matchups (past lock time, no official winner yet) to enter trial
+          scores—the simulated standings update as you go.
         </p>
         <Button
           type="button"
@@ -445,6 +497,12 @@ export function WhatIfClient() {
                     <div className="flex items-center gap-2">
                       Total
                       <SortButton field="totalScore" />
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div className="flex items-center gap-2">
+                      Early finals
+                      <SortButton field="earlyFinalsScore" />
                     </div>
                   </TableHead>
                   <TableHead>
@@ -485,6 +543,7 @@ export function WhatIfClient() {
                     <TableCell>{index + 1}</TableCell>
                     <TableCell className="font-medium">{row.userName}</TableCell>
                     <TableCell className="font-bold">{row.totalScore}</TableCell>
+                    <TableCell>{row.earlyFinalsScore}</TableCell>
                     <TableCell>{row.playInScore}</TableCell>
                     <TableCell>{row.firstRoundScore}</TableCell>
                     <TableCell>{row.secondRoundScore}</TableCell>

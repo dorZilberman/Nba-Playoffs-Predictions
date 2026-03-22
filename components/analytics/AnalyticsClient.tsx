@@ -5,12 +5,24 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { TeamDisplay } from "@/components/ui/TeamDisplay"
 import { Tooltip } from "@/components/ui/tooltip"
-import type { GameAnalytics } from "@/app/api/analytics/route"
+import type {
+  AnalyticsItem,
+  EarlyFinalsAnalyticsApiResponse,
+  EarlyFinalsAnalyticsBlock,
+  GameAnalytics,
+} from "@/app/api/analytics/route"
 import { Check } from "lucide-react"
 
-type RoundType = "playin" | "first" | "second" | "conference" | "finals"
+type RoundType =
+  | "early-finals"
+  | "playin"
+  | "first"
+  | "second"
+  | "conference"
+  | "finals"
 
 const ROUND_LABELS: Record<RoundType, string> = {
+  "early-finals": "Early Finals",
   playin: "Play-In",
   first: "First Round",
   second: "Second Round",
@@ -18,19 +30,43 @@ const ROUND_LABELS: Record<RoundType, string> = {
   finals: "Finals",
 }
 
+function isEarlyFinalsBlock(
+  item: AnalyticsItem
+): item is EarlyFinalsAnalyticsBlock {
+  return item.gameType === "earlyFinals"
+}
+
 export function AnalyticsClient() {
-  const [selectedRound, setSelectedRound] = useState<RoundType>("playin")
-  const [analytics, setAnalytics] = useState<GameAnalytics[]>([])
+  const [selectedRound, setSelectedRound] =
+    useState<RoundType>("early-finals")
+  const [items, setItems] = useState<AnalyticsItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [earlyFinalsNoSeason, setEarlyFinalsNoSeason] = useState(false)
 
   const fetchAnalytics = useCallback(async (round: RoundType) => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/analytics?round=${round}`)
-      if (res.ok) {
-        const data = await res.json()
-        setAnalytics(data)
+      const res = await fetch(
+        `/api/analytics?round=${encodeURIComponent(round)}`,
+        { cache: "no-store" }
+      )
+      if (!res.ok) return
+
+      if (round === "early-finals") {
+        const data = (await res.json()) as EarlyFinalsAnalyticsApiResponse
+        if (data.state === "hidden") {
+          setEarlyFinalsNoSeason(data.reason === "no_season")
+          setItems([])
+          return
+        }
+        setEarlyFinalsNoSeason(false)
+        setItems(data.blocks)
+        return
       }
+
+      setEarlyFinalsNoSeason(false)
+      const data = (await res.json()) as AnalyticsItem[]
+      setItems(data)
     } catch (error) {
       console.error("Error fetching analytics:", error)
     } finally {
@@ -42,7 +78,16 @@ export function AnalyticsClient() {
     fetchAnalytics(selectedRound)
   }, [selectedRound, fetchAnalytics])
 
-  const rounds: RoundType[] = ["playin", "first", "second", "conference", "finals"]
+  const rounds: RoundType[] = [
+    "early-finals",
+    "playin",
+    "first",
+    "second",
+    "conference",
+    "finals",
+  ]
+
+  const emptyMessage = "No games found for this round."
 
   return (
     <div className="space-y-6">
@@ -65,18 +110,88 @@ export function AnalyticsClient() {
         <div className="text-center py-8 text-muted-foreground">
           Loading analytics...
         </div>
-      ) : analytics.length === 0 ? (
+      ) : selectedRound === "early-finals" && earlyFinalsNoSeason ? (
+        <div className="text-center py-8 text-muted-foreground max-w-lg mx-auto text-sm">
+          <p>No active season.</p>
+        </div>
+      ) : items.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
-          No games found for this round.
+          {emptyMessage}
+        </div>
+      ) : selectedRound === "early-finals" ? (
+        <div className="grid gap-4 lg:grid-cols-1">
+          {items.filter(isEarlyFinalsBlock).map((block) => (
+            <EarlyFinalsBlockCard key={block.gameId} block={block} />
+          ))}
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {analytics.map((game) => (
-            <GameAnalyticsCard key={game.gameId} game={game} />
-          ))}
+          {items.map((game) =>
+            isEarlyFinalsBlock(game) ? null : (
+              <GameAnalyticsCard key={game.gameId} game={game} />
+            )
+          )}
         </div>
       )}
     </div>
+  )
+}
+
+function EarlyFinalsBlockCard({ block }: { block: EarlyFinalsAnalyticsBlock }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg flex flex-wrap items-center justify-between gap-2">
+          <span>{block.title}</span>
+          {block.actualWinner && (
+            <span className="text-xs font-normal text-muted-foreground flex items-center gap-1">
+              <Check className="h-3 w-3" />
+              Actual: {block.actualWinner}
+            </span>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {block.picks.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No picks submitted yet.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {block.picks.map((row) => (
+              <div key={row.teamName} className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2 text-sm">
+                  <span className="flex items-center gap-2 min-w-0">
+                    <TeamDisplay teamName={row.teamName} size="sm" showName />
+                  </span>
+                  <span className="shrink-0 text-muted-foreground">
+                    {row.count}{" "}
+                    <span className="text-xs">
+                      ({row.percentage}%)
+                    </span>
+                  </span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div
+                    className="bg-primary h-2 rounded-full transition-all"
+                    style={{ width: `${row.percentage}%` }}
+                  />
+                </div>
+                {row.users.length > 0 && (
+                  <div className="text-xs text-muted-foreground pl-0.5">
+                    <span className="font-medium">Picked by: </span>
+                    {row.users.map((u) => u.name).join(", ")}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="pt-2 border-t text-center text-sm text-muted-foreground">
+          Submissions: {block.totalPredictions}
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 

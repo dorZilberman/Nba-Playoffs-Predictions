@@ -2,6 +2,7 @@
 
 import { PlayoffBracket } from "./PlayoffBracket"
 import { PlayInBracketVisual } from "./PlayInBracketVisual"
+import { EarlyFinalsPredictionsSection } from "./EarlyFinalsPredictionsSection"
 import { CollapsibleSection } from "@/components/ui/collapsible-section"
 import { PlayInPredictionModal } from "./PlayInPredictionModal"
 import { useState, useEffect, useCallback } from "react"
@@ -166,6 +167,14 @@ export function NBABracketView({
 
   return (
     <div className="w-full space-y-6">
+      <CollapsibleSection title="Early Finals Predictions">
+        <EarlyFinalsPredictionsSection
+          viewingUserId={viewingUserId}
+          isViewingOtherUser={isViewingOtherUser}
+          viewingUserName={viewingUserName}
+        />
+      </CollapsibleSection>
+
       <CollapsibleSection title="Play-In">
         <PlayInBracketVisual
           embedded

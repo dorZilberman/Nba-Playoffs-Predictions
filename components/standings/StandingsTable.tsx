@@ -17,6 +17,7 @@ import type { UserStanding } from "@/app/api/standings/route"
 
 type SortField =
   | "totalScore"
+  | "earlyFinalsScore"
   | "playInScore"
   | "firstRoundScore"
   | "secondRoundScore"
@@ -126,6 +127,12 @@ export function StandingsTable() {
                 </TableHead>
                 <TableHead>
                   <div className="flex items-center gap-2">
+                    Early finals
+                    <SortButton field="earlyFinalsScore" />
+                  </div>
+                </TableHead>
+                <TableHead>
+                  <div className="flex items-center gap-2">
                     Play-In
                     <SortButton field="playInScore" />
                   </div>
@@ -172,6 +179,7 @@ export function StandingsTable() {
                   <TableCell className="font-bold">
                     {standing.totalScore}
                   </TableCell>
+                  <TableCell>{standing.earlyFinalsScore}</TableCell>
                   <TableCell>{standing.playInScore}</TableCell>
                   <TableCell>{standing.firstRoundScore}</TableCell>
                   <TableCell>{standing.secondRoundScore}</TableCell>

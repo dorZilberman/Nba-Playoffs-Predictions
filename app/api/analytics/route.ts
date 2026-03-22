@@ -4,8 +4,11 @@ import dbConnect from "@/app/lib/db"
 import Prediction from "@/app/lib/models/Prediction"
 import Series from "@/app/lib/models/Series"
 import PlayInGame from "@/app/lib/models/PlayInGame"
-import User from "@/app/lib/models/User"
+import Season from "@/app/lib/models/Season"
+import EarlyFinalsPrediction from "@/app/lib/models/EarlyFinalsPrediction"
 import { calculateSeriesScore } from "@/app/lib/scoring/calculator"
+import { resolveFinalsOutcomesFromSeries } from "@/app/lib/scoring/earlyFinals"
+import { isEarlyFinalsLocked } from "@/app/lib/locking/earlyFinalsLock"
 import { ROUND_BASE_VALUES } from "@/app/lib/scoring/types"
 import mongoose from "mongoose"
 
@@ -70,15 +73,145 @@ export interface GameAnalytics {
   actualResult?: string
 }
 
+export interface EarlyFinalsPickRow {
+  teamName: string
+  count: number
+  percentage: number
+  users: Array<{ id: string; name: string }>
+}
+
+/** One panel: East picks, West picks, or NBA champion picks */
+export interface EarlyFinalsAnalyticsBlock {
+  gameType: "earlyFinals"
+  gameId: "east-finalists" | "west-finalists" | "nba-champion"
+  round: "early-finals"
+  title: string
+  /** Set once that outcome is decided in the bracket */
+  actualWinner?: string
+  picks: EarlyFinalsPickRow[]
+  totalPredictions: number
+}
+
+export type AnalyticsItem = GameAnalytics | EarlyFinalsAnalyticsBlock
+
+/** Response shape when ?round=early-finals (pick names hidden until pool lock, like the bracket). */
+export type EarlyFinalsAnalyticsApiResponse =
+  | { state: "hidden"; reason: "no_season" | "not_locked" }
+  | { state: "visible"; blocks: EarlyFinalsAnalyticsBlock[] }
+
 export async function GET(request: NextRequest) {
   try {
     await requireAuth()
     await dbConnect()
 
     const searchParams = request.nextUrl.searchParams
-    const round = searchParams.get("round") // "playin" | "first" | "second" | "conference" | "finals"
+    const round = searchParams.get("round") // "early-finals" | "playin" | "first" | ...
 
-    const analytics: GameAnalytics[] = []
+    const analytics: AnalyticsItem[] = []
+
+    if (round === "early-finals") {
+      const rawSeason = await Season.collection.findOne({ isActive: true })
+      if (!rawSeason) {
+        return NextResponse.json({
+          state: "hidden",
+          reason: "no_season",
+        } satisfies EarlyFinalsAnalyticsApiResponse)
+      }
+
+      const lockRaw = rawSeason.earlyFinalsLockTime
+      if (
+        !isEarlyFinalsLocked({
+          earlyFinalsLockTime:
+            lockRaw != null ? new Date(lockRaw as Date) : undefined,
+        })
+      ) {
+        return NextResponse.json({
+          state: "hidden",
+          reason: "not_locked",
+        } satisfies EarlyFinalsAnalyticsApiResponse)
+      }
+
+      const [preds, seriesList] = await Promise.all([
+        EarlyFinalsPrediction.find({
+          seasonId: rawSeason._id,
+        }).populate("userId", "name"),
+        Series.find({ seasonId: rawSeason._id }).lean(),
+      ])
+
+      const outcomes = resolveFinalsOutcomesFromSeries(
+        seriesList.map((s) => ({
+          round: s.round,
+          conference: s.conference,
+          winner: s.winner,
+        }))
+      )
+
+      const total = preds.length
+
+      function aggregate(
+        getTeam: (p: (typeof preds)[0]) => string
+      ): EarlyFinalsPickRow[] {
+        const map = new Map<string, { count: number; users: { id: string; name: string }[] }>()
+        for (const p of preds) {
+          const team = getTeam(p)
+          if (!team) continue
+          if (!map.has(team)) {
+            map.set(team, { count: 0, users: [] })
+          }
+          const entry = map.get(team)!
+          entry.count++
+          const u = p.userId as unknown as { _id?: mongoose.Types.ObjectId; name?: string }
+          entry.users.push({
+            id: u._id?.toString() || String(p.userId),
+            name: u.name || "Unknown",
+          })
+        }
+        return [...map.entries()]
+          .map(([teamName, v]) => ({
+            teamName,
+            count: v.count,
+            percentage:
+              total > 0 ? Math.round((v.count / total) * 100) : 0,
+            users: v.users,
+          }))
+          .sort((a, b) => b.count - a.count)
+      }
+
+      const blocks: EarlyFinalsAnalyticsBlock[] = [
+        {
+          gameType: "earlyFinals",
+          gameId: "east-finalists",
+          round: "early-finals",
+          title: "Eastern Conference champion (Early Finals)",
+          actualWinner: outcomes.eastConferenceWinner ?? undefined,
+          picks: aggregate((p) => p.eastFinalist),
+          totalPredictions: total,
+        },
+        {
+          gameType: "earlyFinals",
+          gameId: "west-finalists",
+          round: "early-finals",
+          title: "Western Conference champion (Early Finals)",
+          actualWinner: outcomes.westConferenceWinner ?? undefined,
+          picks: aggregate((p) => p.westFinalist),
+          totalPredictions: total,
+        },
+        {
+          gameType: "earlyFinals",
+          gameId: "nba-champion",
+          round: "early-finals",
+          title: "NBA champion (Early Finals)",
+          actualWinner: outcomes.nbaChampion ?? undefined,
+          picks: aggregate((p) => p.nbaChampion),
+          totalPredictions: total,
+        },
+      ]
+
+      return NextResponse.json({
+        state: "visible",
+        blocks,
+      } satisfies EarlyFinalsAnalyticsApiResponse)
+    }
 
     if (!round || round === "playin") {
       // Get all Play-In games
@@ -350,7 +483,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Sort analytics by round order
+    // Sort analytics by round order (series + play-in only in this branch)
     const roundOrder: Record<string, number> = {
       playin: 0,
       first: 1,
@@ -360,13 +493,15 @@ export async function GET(request: NextRequest) {
     }
 
     analytics.sort((a, b) => {
-      const roundDiff = (roundOrder[a.round] || 999) - (roundOrder[b.round] || 999)
+      const ga = a as GameAnalytics
+      const gb = b as GameAnalytics
+      const roundDiff =
+        (roundOrder[ga.round] || 999) - (roundOrder[gb.round] || 999)
       if (roundDiff !== 0) return roundDiff
 
-      // Within same round, sort by conference (east first, then west, then null)
       const confOrder: Record<string, number> = { east: 0, west: 1 }
-      const confA = confOrder[a.conference || ""] ?? 2
-      const confB = confOrder[b.conference || ""] ?? 2
+      const confA = confOrder[ga.conference || ""] ?? 2
+      const confB = confOrder[gb.conference || ""] ?? 2
       if (confA !== confB) return confA - confB
 
       return 0

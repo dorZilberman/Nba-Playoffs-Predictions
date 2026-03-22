@@ -6,7 +6,9 @@ import Prediction from "@/app/lib/models/Prediction"
 import Series from "@/app/lib/models/Series"
 import PlayInGame from "@/app/lib/models/PlayInGame"
 import Season from "@/app/lib/models/Season"
+import EarlyFinalsPrediction from "@/app/lib/models/EarlyFinalsPrediction"
 import { isSeriesLocked, isPlayInGameLocked } from "@/app/lib/locking/lockChecker"
+import { isEarlyFinalsLocked } from "@/app/lib/locking/earlyFinalsLock"
 
 export interface WhatIfUser {
   userId: string
@@ -22,6 +24,13 @@ export interface WhatIfPredictionRow {
     team1Wins: number
     team2Wins: number
   }
+}
+
+export interface WhatIfEarlyFinalsRow {
+  userId: string
+  eastFinalist: string
+  westFinalist: string
+  nbaChampion: string
 }
 
 function serializeSeries(doc: any) {
@@ -54,7 +63,7 @@ function serializePlayIn(doc: any) {
 
 export async function GET() {
   try {
-    await requireAuth()
+    const user = await requireAuth()
     await dbConnect()
 
     const season = await Season.findOne({ isActive: true })
@@ -64,15 +73,40 @@ export async function GET() {
         series: [] as ReturnType<typeof serializeSeries>[],
         playInGames: [] as ReturnType<typeof serializePlayIn>[],
         predictions: [] as WhatIfPredictionRow[],
+        earlyFinals: [] as WhatIfEarlyFinalsRow[],
       })
     }
 
-    const [users, allSeries, allPlayInGames, allPredictions] = await Promise.all([
-      User.find({}).lean(),
-      Series.find({ seasonId: season._id }).lean(),
-      PlayInGame.find({ seasonId: season._id }).lean(),
-      Prediction.find({}).lean(),
-    ])
+    const [users, allSeries, allPlayInGames, allPredictions, earlyDocs] =
+      await Promise.all([
+        User.find({}).lean(),
+        Series.find({ seasonId: season._id }).lean(),
+        PlayInGame.find({ seasonId: season._id }).lean(),
+        Prediction.find({}).lean(),
+        EarlyFinalsPrediction.find({ seasonId: season._id }).lean(),
+      ])
+
+    const earlyLocked = isEarlyFinalsLocked(season)
+    const earlyFiltered = earlyLocked
+      ? earlyDocs
+      : earlyDocs.filter(
+          (e: { userId: { toString: () => string } }) =>
+            e.userId.toString() === user.id
+        )
+
+    const earlyFinals: WhatIfEarlyFinalsRow[] = earlyFiltered.map(
+      (e: {
+        userId: { toString: () => string }
+        eastFinalist: string
+        westFinalist: string
+        nbaChampion: string
+      }) => ({
+        userId: e.userId.toString(),
+        eastFinalist: e.eastFinalist,
+        westFinalist: e.westFinalist,
+        nbaChampion: e.nbaChampion,
+      })
+    )
 
     const seriesById = new Map(
       allSeries.map((s: any) => [s._id.toString(), s])
@@ -131,6 +165,7 @@ export async function GET() {
       series: allSeries.map(serializeSeries),
       playInGames: allPlayInGames.map(serializePlayIn),
       predictions: predictionsOut,
+      earlyFinals,
     })
   } catch (error) {
     console.error("Error loading what-if data:", error)

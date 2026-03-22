@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/app/lib/utils/auth"
 import { AdminBracketView } from "@/components/admin/AdminBracketView"
+import { EarlyFinalsDeadlineAdmin } from "@/components/admin/EarlyFinalsDeadlineAdmin"
 import dbConnect from "@/app/lib/db"
 import Season from "@/app/lib/models/Season"
 
@@ -17,6 +18,8 @@ export default async function AdminPage() {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Admin Panel</h1>
       
+      <EarlyFinalsDeadlineAdmin />
+
       {/* Bracket View */}
       <div className="space-y-4">
         <h2 className="text-2xl font-semibold">Bracket Management</h2>
