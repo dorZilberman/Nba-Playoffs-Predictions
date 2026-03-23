@@ -52,8 +52,13 @@ function useRechartsDismissOnOutsidePress() {
   return { containerRef, resetKey }
 }
 
-/** Stops the browser from focusing SVG slice paths on tap — avoids a second-tap focus ring. */
+/**
+ * Stops the browser from focusing SVG slice paths on desktop click (avoids a focus ring).
+ * Do not call preventDefault() for touch/pen: canceled pointerdown suppresses follow-up events
+ * and breaks Recharts slice interaction on mobile.
+ */
 function suppressPieSectorFocus(e: ReactPointerEvent<HTMLDivElement>) {
+  if (e.pointerType !== "mouse") return
   const t = e.target
   if (t instanceof Element && t.closest(".recharts-pie-sector")) {
     e.preventDefault()
