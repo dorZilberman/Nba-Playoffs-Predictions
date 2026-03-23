@@ -9,8 +9,8 @@ const updateSeriesSchema = z.object({
   conference: z.enum(["east", "west"]).nullable().optional(),
   team1: z.string().min(1).optional(),
   team2: z.string().min(1).optional(),
-  team1Seed: z.number().min(1).max(8).optional(),
-  team2Seed: z.number().min(1).max(8).optional(),
+  team1Seed: z.coerce.number().min(1).max(8).optional(),
+  team2Seed: z.coerce.number().min(1).max(8).optional(),
   startTime: z.string().datetime().optional(),
   currentScore: z
     .object({

@@ -37,10 +37,8 @@ export function AdminSeriesModal({
   onClose,
   onSave,
 }: AdminSeriesModalProps) {
-  // Helper function to convert UTC date to local datetime-local format
   const utcToLocalDateTime = (utcDate: Date | string): string => {
     const date = typeof utcDate === "string" ? new Date(utcDate) : utcDate
-    // Get local time components
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, "0")
     const day = String(date.getDate()).padStart(2, "0")
@@ -51,13 +49,15 @@ export function AdminSeriesModal({
 
   const [teams, setTeams] = useState<ITeam[]>([])
   const [loadingTeams, setLoadingTeams] = useState(true)
-  
-  // Helper to safely get form data from series
+
   const getInitialFormData = useCallback(() => {
     let startTimeValue = ""
     if (series.startTime) {
       try {
-        const date = typeof series.startTime === "string" ? new Date(series.startTime) : series.startTime
+        const date =
+          typeof series.startTime === "string"
+            ? new Date(series.startTime)
+            : series.startTime
         if (!isNaN(date.getTime())) {
           startTimeValue = utcToLocalDateTime(date)
         }
@@ -65,20 +65,28 @@ export function AdminSeriesModal({
         console.error("Error converting startTime:", error)
       }
     }
-    
+
+    const seed = (v: unknown): number | undefined => {
+      if (v === undefined || v === null || v === "") return undefined
+      const n =
+        typeof v === "number" && Number.isFinite(v) ? v : parseInt(String(v), 10)
+      if (!Number.isFinite(n) || n < 1 || n > 8) return undefined
+      return n
+    }
+
     return {
       team1: series.team1 || "",
       team2: series.team2 || "",
-      team1Seed: series.team1Seed !== undefined && series.team1Seed !== null ? series.team1Seed : undefined,
-      team2Seed: series.team2Seed !== undefined && series.team2Seed !== null ? series.team2Seed : undefined,
+      team1Seed: seed(series.team1Seed),
+      team2Seed: seed(series.team2Seed),
       startTime: startTimeValue,
       team1Wins: series.currentScore?.team1Wins ?? 0,
       team2Wins: series.currentScore?.team2Wins ?? 0,
       winner: series.winner || "",
     }
   }, [series])
-  
-  const [formData, setFormData] = useState(getInitialFormData())
+
+  const [formData, setFormData] = useState(getInitialFormData)
   const [saving, setSaving] = useState(false)
 
   const fetchTeams = useCallback(async () => {
@@ -113,7 +121,6 @@ export function AdminSeriesModal({
 
   useEffect(() => {
     if (isOpen) {
-      // Reset form data with current series values when modal opens
       setFormData(getInitialFormData())
     }
   }, [isOpen, getInitialFormData])
@@ -245,7 +252,7 @@ export function AdminSeriesModal({
                 type="number"
                 min="1"
                 max="8"
-                value={formData.team1Seed || ""}
+                value={formData.team1Seed == null ? "" : formData.team1Seed}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
@@ -262,7 +269,7 @@ export function AdminSeriesModal({
                 type="number"
                 min="1"
                 max="8"
-                value={formData.team2Seed || ""}
+                value={formData.team2Seed == null ? "" : formData.team2Seed}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
@@ -417,12 +424,38 @@ export function AdminSeriesModal({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">None</SelectItem>
-                {formData.team1 && formData.team1 !== "none" && (
-                  <SelectItem value={formData.team1}>{formData.team1}</SelectItem>
-                )}
-                {formData.team2 && formData.team2 !== "none" && (
-                  <SelectItem value={formData.team2}>{formData.team2}</SelectItem>
-                )}
+                {(() => {
+                  const t1 =
+                    formData.team1 && formData.team1 !== "none"
+                      ? formData.team1
+                      : null
+                  const t2 =
+                    formData.team2 && formData.team2 !== "none"
+                      ? formData.team2
+                      : null
+                  if (!t1 && !t2) return null
+                  if (t1 && t2 && t1 === t2) {
+                    return (
+                      <SelectItem key="winner-dedup" value={t1}>
+                        {t1}
+                      </SelectItem>
+                    )
+                  }
+                  return (
+                    <>
+                      {t1 && (
+                        <SelectItem key="winner-team1" value={t1}>
+                          {t1}
+                        </SelectItem>
+                      )}
+                      {t2 && (
+                        <SelectItem key="winner-team2" value={t2}>
+                          {t2}
+                        </SelectItem>
+                      )}
+                    </>
+                  )
+                })()}
               </SelectContent>
             </Select>
           </div>
