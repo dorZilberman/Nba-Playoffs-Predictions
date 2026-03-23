@@ -13,23 +13,12 @@ export function Tooltip({ children, content, className }: TooltipProps) {
   const [isVisible, setIsVisible] = React.useState(false)
   const [position, setPosition] = React.useState<"center" | "left" | "right">("center")
   const [leftOffset, setLeftOffset] = React.useState<number | undefined>(undefined)
-  const [isTouchDevice, setIsTouchDevice] = React.useState(false)
   const tooltipRef = React.useRef<HTMLDivElement>(null)
   const containerRef = React.useRef<HTMLDivElement>(null)
 
-  // Detect touch device
+  // Handle click outside to close tooltip on touch / pen
   React.useEffect(() => {
-    const checkTouch = () => {
-      setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0)
-    }
-    checkTouch()
-    window.addEventListener('resize', checkTouch)
-    return () => window.removeEventListener('resize', checkTouch)
-  }, [])
-
-  // Handle click outside to close tooltip on mobile
-  React.useEffect(() => {
-    if (!isVisible || !isTouchDevice) return
+    if (!isVisible) return
 
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       if (
@@ -42,56 +31,48 @@ export function Tooltip({ children, content, className }: TooltipProps) {
       }
     }
 
-    // Use a small delay to avoid immediate closure
-    const timeoutId = setTimeout(() => {
-      document.addEventListener('click', handleClickOutside)
-      document.addEventListener('touchstart', handleClickOutside)
-    }, 100)
+    const timeoutId = window.setTimeout(() => {
+      document.addEventListener("click", handleClickOutside, true)
+      document.addEventListener("touchstart", handleClickOutside, true)
+    }, 0)
 
     return () => {
       clearTimeout(timeoutId)
-      document.removeEventListener('click', handleClickOutside)
-      document.removeEventListener('touchstart', handleClickOutside)
+      document.removeEventListener("click", handleClickOutside, true)
+      document.removeEventListener("touchstart", handleClickOutside, true)
     }
-  }, [isVisible, isTouchDevice])
+  }, [isVisible])
 
-  React.useEffect(() => {
-    if (isVisible && tooltipRef.current && containerRef.current) {
-      // Use requestAnimationFrame to ensure tooltip is rendered before measuring
-      requestAnimationFrame(() => {
-        if (!tooltipRef.current || !containerRef.current) return
-        
-        const tooltip = tooltipRef.current
-        const container = containerRef.current
-        const containerRect = container.getBoundingClientRect()
-        const tooltipRect = tooltip.getBoundingClientRect()
-        
-        // Calculate where the tooltip would be if centered
-        const centerX = containerRect.left + containerRect.width / 2
-        const tooltipHalfWidth = tooltipRect.width / 2
-        
-        // Check boundaries with some padding (16px)
-        const padding = 16
-        const leftBoundary = centerX - tooltipHalfWidth
-        const rightBoundary = centerX + tooltipHalfWidth
-        
-        if (leftBoundary < padding) {
-          // Would overflow on left
-          // Calculate how much we need to shift right to stay in viewport
-          const neededShift = padding - leftBoundary
-          setPosition("left")
-          setLeftOffset(neededShift)
-        } else if (rightBoundary > window.innerWidth - padding) {
-          // Would overflow on right, align to right edge of container
-          setPosition("right")
-          setLeftOffset(undefined)
-        } else {
-          setPosition("center")
-          setLeftOffset(undefined)
-        }
-      })
+  // Measure before paint so the tooltip doesn’t jump after the first frame (mobile + desktop).
+  React.useLayoutEffect(() => {
+    if (!isVisible) {
+      setPosition("center")
+      setLeftOffset(undefined)
+      return
+    }
+
+    const tooltip = tooltipRef.current
+    const container = containerRef.current
+    if (!tooltip || !container) return
+
+    const containerRect = container.getBoundingClientRect()
+    const tooltipRect = tooltip.getBoundingClientRect()
+
+    const centerX = containerRect.left + containerRect.width / 2
+    const tooltipHalfWidth = tooltipRect.width / 2
+
+    const padding = 16
+    const leftBoundary = centerX - tooltipHalfWidth
+    const rightBoundary = centerX + tooltipHalfWidth
+
+    if (leftBoundary < padding) {
+      const neededShift = padding - leftBoundary
+      setPosition("left")
+      setLeftOffset(neededShift)
+    } else if (rightBoundary > window.innerWidth - padding) {
+      setPosition("right")
+      setLeftOffset(undefined)
     } else {
-      // Reset position when tooltip is hidden
       setPosition("center")
       setLeftOffset(undefined)
     }
@@ -119,29 +100,33 @@ export function Tooltip({ children, content, className }: TooltipProps) {
     }
   }
 
-  const handleInteraction = () => {
-    if (isTouchDevice) {
-      // Toggle on mobile
-      setIsVisible((prev) => !prev)
-    } else {
-      // Show on hover for desktop
-      setIsVisible(true)
-    }
+  /**
+   * Mouse: hover to show / leave to hide.
+   * Touch/pen: only pointerdown toggles — do NOT use mouseenter + click or iOS will fire
+   * synthetic mouse events after touch and toggle twice (flicker).
+   */
+  const onPointerEnter = (e: React.PointerEvent) => {
+    if (e.pointerType === "mouse") setIsVisible(true)
   }
 
-  const handleLeave = () => {
-    if (!isTouchDevice) {
-      setIsVisible(false)
+  const onPointerLeave = (e: React.PointerEvent) => {
+    if (e.pointerType === "mouse") setIsVisible(false)
+  }
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === "touch" || e.pointerType === "pen") {
+      e.preventDefault()
+      setIsVisible((v) => !v)
     }
   }
 
   return (
     <div
       ref={containerRef}
-      className="relative inline-block"
-      onMouseEnter={handleInteraction}
-      onMouseLeave={handleLeave}
-      onClick={handleInteraction}
+      className="relative inline-block touch-manipulation"
+      onPointerEnter={onPointerEnter}
+      onPointerLeave={onPointerLeave}
+      onPointerDown={onPointerDown}
     >
       {children}
       {isVisible && (
@@ -153,17 +138,16 @@ export function Tooltip({ children, content, className }: TooltipProps) {
             className
           )}
           style={{
-            // Ensure tooltip doesn't go off screen
-            left: position === "left" 
-              ? leftOffset !== undefined 
-                ? `${leftOffset}px` 
-                : 0 
-              : position === "center" 
-                ? "50%" 
-                : undefined,
+            left:
+              position === "left"
+                ? leftOffset !== undefined
+                  ? `${leftOffset}px`
+                  : 0
+                : position === "center"
+                  ? "50%"
+                  : undefined,
             right: position === "right" ? 0 : undefined,
             transform: position === "center" ? "translateX(-50%)" : "none",
-            // Add max-width constraint to prevent overflow
             maxWidth: `min(300px, calc(100vw - 32px))`,
           }}
         >
