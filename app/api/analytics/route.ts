@@ -15,7 +15,7 @@ import {
   isSeriesLocked,
 } from "@/app/lib/locking/lockChecker"
 import { ROUND_BASE_VALUES } from "@/app/lib/scoring/types"
-import mongoose from "mongoose"
+import { filterPredictionsByPaid } from "@/app/lib/analytics/predictionUserFilter"
 
 export interface GameAnalytics {
   gameId: string
@@ -106,24 +106,6 @@ export type EarlyFinalsAnalyticsApiResponse =
   | { state: "hidden"; reason: "no_season" | "not_locked" }
   | { state: "visible"; blocks: EarlyFinalsAnalyticsBlock[] }
 
-function predictionUserId(pred: { userId: unknown }): string {
-  const uid = pred.userId
-  if (uid == null) return ""
-  if (typeof uid === "object" && uid !== null && "_id" in uid) {
-    const id = (uid as { _id: mongoose.Types.ObjectId })._id
-    return id?.toString?.() ?? ""
-  }
-  return String(uid)
-}
-
-function filterPredictionsByPaid<T extends { userId: unknown }>(
-  preds: T[],
-  paidIds: Set<string> | null
-): T[] {
-  if (!paidIds) return preds
-  return preds.filter((p) => paidIds.has(predictionUserId(p)))
-}
-
 export async function GET(request: NextRequest) {
   try {
     await requireAuth()
@@ -197,7 +179,10 @@ export async function GET(request: NextRequest) {
           }
           const entry = map.get(team)!
           entry.count++
-          const u = p.userId as unknown as { _id?: mongoose.Types.ObjectId; name?: string }
+          const u = p.userId as unknown as {
+            _id?: { toString: () => string }
+            name?: string
+          }
           entry.users.push({
             id: u._id?.toString() || String(p.userId),
             name: u.name || "Unknown",
