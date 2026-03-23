@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type ComponentProps } from "react"
 import type { PointerEvent as ReactPointerEvent } from "react"
 import {
   Bar,
@@ -61,14 +61,15 @@ function suppressPieSectorFocus(e: ReactPointerEvent<HTMLDivElement>) {
 }
 
 /** Highlight active slice along the wedge (Recharts default active wrapper reads as a boxy ring). */
-function analyticsPieActiveSector(props: Record<string, unknown>) {
+function analyticsPieActiveSector(props: unknown) {
+  const p = props as Record<string, unknown>
   const outer =
-    typeof props.outerRadius === "number" && Number.isFinite(props.outerRadius)
-      ? props.outerRadius
+    typeof p.outerRadius === "number" && Number.isFinite(p.outerRadius)
+      ? p.outerRadius
       : 0
   return (
     <Sector
-      {...props}
+      {...(p as ComponentProps<typeof Sector>)}
       outerRadius={outer + 8}
       stroke="hsl(var(--background))"
       strokeWidth={2}
