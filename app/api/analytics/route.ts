@@ -139,9 +139,7 @@ export async function GET(request: NextRequest) {
     let paidUserIds: Set<string> | null = null
     if (paidOnly) {
       const paid = await User.find({ hasPayed: true }).select("_id").lean()
-      paidUserIds = new Set(
-        paid.map((u: { _id: mongoose.Types.ObjectId }) => u._id.toString())
-      )
+      paidUserIds = new Set(paid.map((u) => String(u._id)))
     }
 
     const analytics: AnalyticsItem[] = []
