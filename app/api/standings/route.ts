@@ -19,6 +19,7 @@ import EarlyFinalsPrediction from "@/app/lib/models/EarlyFinalsPrediction"
 export interface UserStanding {
   userId: string
   userName: string
+  hasPayed: boolean
   totalScore: number
   earlyFinalsScore: number
   playInScore: number
@@ -131,6 +132,7 @@ export async function GET(request: NextRequest) {
       return {
         userId: user._id.toString(),
         userName: user.name,
+        hasPayed: Boolean(user.hasPayed),
         totalScore,
         earlyFinalsScore,
         playInScore,

@@ -6,6 +6,8 @@ export interface IUser {
   name: string
   image?: string
   isAdmin: boolean
+  /** Set manually in admin after payment */
+  hasPayed: boolean
   createdAt: Date
 }
 
@@ -25,6 +27,10 @@ const UserSchema = new Schema<IUser>(
       type: String,
     },
     isAdmin: {
+      type: Boolean,
+      default: false,
+    },
+    hasPayed: {
       type: Boolean,
       default: false,
     },

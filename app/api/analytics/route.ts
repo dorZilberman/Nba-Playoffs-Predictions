@@ -6,6 +6,7 @@ import Series from "@/app/lib/models/Series"
 import PlayInGame from "@/app/lib/models/PlayInGame"
 import Season from "@/app/lib/models/Season"
 import EarlyFinalsPrediction from "@/app/lib/models/EarlyFinalsPrediction"
+import User from "@/app/lib/models/User"
 import { calculateSeriesScore } from "@/app/lib/scoring/calculator"
 import { resolveFinalsOutcomesFromSeries } from "@/app/lib/scoring/earlyFinals"
 import { isEarlyFinalsLocked } from "@/app/lib/locking/earlyFinalsLock"
@@ -105,6 +106,24 @@ export type EarlyFinalsAnalyticsApiResponse =
   | { state: "hidden"; reason: "no_season" | "not_locked" }
   | { state: "visible"; blocks: EarlyFinalsAnalyticsBlock[] }
 
+function predictionUserId(pred: { userId: unknown }): string {
+  const uid = pred.userId
+  if (uid == null) return ""
+  if (typeof uid === "object" && uid !== null && "_id" in uid) {
+    const id = (uid as { _id: mongoose.Types.ObjectId })._id
+    return id?.toString?.() ?? ""
+  }
+  return String(uid)
+}
+
+function filterPredictionsByPaid<T extends { userId: unknown }>(
+  preds: T[],
+  paidIds: Set<string> | null
+): T[] {
+  if (!paidIds) return preds
+  return preds.filter((p) => paidIds.has(predictionUserId(p)))
+}
+
 export async function GET(request: NextRequest) {
   try {
     await requireAuth()
@@ -112,6 +131,18 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams
     const round = searchParams.get("round") // "early-finals" | "playin" | "first" | ...
+
+    const paidOnly =
+      searchParams.get("paidOnly") === "true" ||
+      searchParams.get("paidOnly") === "1"
+
+    let paidUserIds: Set<string> | null = null
+    if (paidOnly) {
+      const paid = await User.find({ hasPayed: true }).select("_id").lean()
+      paidUserIds = new Set(
+        paid.map((u: { _id: mongoose.Types.ObjectId }) => u._id.toString())
+      )
+    }
 
     const analytics: AnalyticsItem[] = []
 
@@ -137,12 +168,14 @@ export async function GET(request: NextRequest) {
         } satisfies EarlyFinalsAnalyticsApiResponse)
       }
 
-      const [preds, seriesList] = await Promise.all([
+      const [predsRaw, seriesList] = await Promise.all([
         EarlyFinalsPrediction.find({
           seasonId: rawSeason._id,
         }).populate("userId", "name"),
         Series.find({ seasonId: rawSeason._id }).lean(),
       ])
+
+      const preds = filterPredictionsByPaid(predsRaw, paidUserIds)
 
       const outcomes = resolveFinalsOutcomesFromSeries(
         seriesList.map((s) => ({
@@ -229,9 +262,12 @@ export async function GET(request: NextRequest) {
         }
 
         // Get all predictions for this game
-        const predictions = await Prediction.find({
-          playInGameId: game._id,
-        }).populate("userId", "name")
+        const predictions = filterPredictionsByPaid(
+          await Prediction.find({
+            playInGameId: game._id,
+          }).populate("userId", "name"),
+          paidUserIds
+        )
 
         const team1Predictions = predictions.filter(
           (p) => p.predictedWinner === game.team1
@@ -298,9 +334,12 @@ export async function GET(request: NextRequest) {
         }
 
         // Get all predictions for this series
-        const predictions = await Prediction.find({
-          seriesId: s._id,
-        }).populate("userId", "name")
+        const predictions = filterPredictionsByPaid(
+          await Prediction.find({
+            seriesId: s._id,
+          }).populate("userId", "name"),
+          paidUserIds
+        )
 
         const team1Predictions = predictions.filter(
           (p) => p.predictedWinner === s.team1

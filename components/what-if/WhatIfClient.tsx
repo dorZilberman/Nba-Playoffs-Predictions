@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { SegmentedControl } from "@/components/ui/segmented-control"
 import {
   Table,
   TableBody,
@@ -37,6 +38,7 @@ type HypoScores = Record<string, { team1Wins: number; team2Wins: number }>
 interface ApiUser {
   userId: string
   userName: string
+  hasPayed?: boolean
 }
 
 interface ApiSeries {
@@ -89,6 +91,7 @@ interface WhatIfPayload {
 export interface SimulatedStanding {
   userId: string
   userName: string
+  hasPayed: boolean
   totalScore: number
   earlyFinalsScore: number
   playInScore: number
@@ -278,6 +281,7 @@ function computeStandings(
     return {
       userId: user.userId,
       userName: user.userName,
+      hasPayed: Boolean(user.hasPayed),
       totalScore,
       earlyFinalsScore,
       playInScore,
@@ -311,6 +315,7 @@ export function WhatIfClient() {
   const [hypoScores, setHypoScores] = useState<HypoScores>({})
   const [sortField, setSortField] = useState<SortField>("totalScore")
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
+  const [onlyPaidUsers, setOnlyPaidUsers] = useState(false)
 
   const setHypoForSeries = useCallback(
     (seriesId: string, team1Wins: number, team2Wins: number) => {
@@ -343,6 +348,10 @@ export function WhatIfClient() {
       setPayload({
         ...data,
         earlyFinals: data.earlyFinals ?? [],
+        users: (data.users ?? []).map((u) => ({
+          ...u,
+          hasPayed: Boolean(u.hasPayed),
+        })),
       })
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load")
@@ -404,7 +413,8 @@ export function WhatIfClient() {
   }
 
   const sortedStandings = useMemo(() => {
-    return [...standings].sort((a, b) => {
+    const base = onlyPaidUsers ? standings.filter((s) => s.hasPayed) : standings
+    return [...base].sort((a, b) => {
       let aVal: string | number = a[sortField]
       let bVal: string | number = b[sortField]
       if (sortField === "userName") {
@@ -416,7 +426,7 @@ export function WhatIfClient() {
       }
       return aVal < bVal ? 1 : -1
     })
-  }, [standings, sortField, sortDirection])
+  }, [standings, onlyPaidUsers, sortField, sortDirection])
 
   const SortButton = ({ field }: { field: SortField }) => {
     const isActive = sortField === field
@@ -478,8 +488,20 @@ export function WhatIfClient() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="space-y-3">
           <CardTitle>Simulated standings</CardTitle>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-muted-foreground shrink-0">Users:</span>
+            <SegmentedControl
+              aria-label="Which users to include in simulated standings"
+              value={onlyPaidUsers ? "paid" : "all"}
+              onChange={(v) => setOnlyPaidUsers(v === "paid")}
+              options={[
+                { value: "all", label: "All" },
+                { value: "paid", label: "Paid only" },
+              ]}
+            />
+          </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">

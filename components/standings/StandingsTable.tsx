@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table"
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { SegmentedControl } from "@/components/ui/segmented-control"
 import type { UserStanding } from "@/app/api/standings/route"
 
 type SortField =
@@ -33,7 +34,7 @@ export function StandingsTable() {
   const [loading, setLoading] = useState(true)
   const [sortField, setSortField] = useState<SortField>("totalScore")
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  const [onlyPaidUsers, setOnlyPaidUsers] = useState(false)
 
   useEffect(() => {
     fetchStandings()
@@ -42,8 +43,12 @@ export function StandingsTable() {
   const fetchStandings = async () => {
     try {
       const res = await fetch("/api/standings")
-      const data = await res.json()
-      setStandings(data)
+      const data = (await res.json()) as UserStanding[]
+      setStandings(
+        Array.isArray(data)
+          ? data.map((s) => ({ ...s, hasPayed: Boolean(s.hasPayed) }))
+          : []
+      )
     } catch (error) {
       console.error("Error fetching standings:", error)
     } finally {
@@ -60,7 +65,11 @@ export function StandingsTable() {
     }
   }
 
-  const sortedStandings = [...standings].sort((a, b) => {
+  const filteredStandings = onlyPaidUsers
+    ? standings.filter((s) => s.hasPayed)
+    : standings
+
+  const sortedStandings = [...filteredStandings].sort((a, b) => {
     let aVal: any = a[sortField]
     let bVal: any = b[sortField]
 
@@ -102,8 +111,20 @@ export function StandingsTable() {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="space-y-3">
         <CardTitle>Standings</CardTitle>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted-foreground shrink-0">Users:</span>
+          <SegmentedControl
+            aria-label="Which users to include in standings"
+            value={onlyPaidUsers ? "paid" : "all"}
+            onChange={(v) => setOnlyPaidUsers(v === "paid")}
+            options={[
+              { value: "all", label: "All" },
+              { value: "paid", label: "Paid only" },
+            ]}
+          />
+        </div>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">

@@ -13,6 +13,7 @@ import { isEarlyFinalsLocked } from "@/app/lib/locking/earlyFinalsLock"
 export interface WhatIfUser {
   userId: string
   userName: string
+  hasPayed: boolean
 }
 
 export interface WhatIfPredictionRow {
@@ -158,6 +159,7 @@ export async function GET() {
     const usersOut: WhatIfUser[] = users.map((u: any) => ({
       userId: u._id.toString(),
       userName: u.name,
+      hasPayed: Boolean(u.hasPayed),
     }))
 
     return NextResponse.json({

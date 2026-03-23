@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { SegmentedControl } from "@/components/ui/segmented-control"
 import { TeamDisplay } from "@/components/ui/TeamDisplay"
 import { Tooltip } from "@/components/ui/tooltip"
 import type {
@@ -142,14 +143,17 @@ export function AnalyticsClient() {
   const [earlyFinalsNoSeason, setEarlyFinalsNoSeason] = useState(false)
   const [analyticsView, setAnalyticsView] =
     useState<AnalyticsViewMode>("list")
+  const [onlyPaidUsers, setOnlyPaidUsers] = useState(false)
 
-  const fetchAnalytics = useCallback(async (round: RoundType) => {
+  const fetchAnalytics = useCallback(async (round: RoundType, paidOnly: boolean) => {
     setLoading(true)
     try {
-      const res = await fetch(
-        `/api/analytics?round=${encodeURIComponent(round)}`,
-        { cache: "no-store" }
-      )
+      const params = new URLSearchParams()
+      params.set("round", round)
+      if (paidOnly) params.set("paidOnly", "true")
+      const res = await fetch(`/api/analytics?${params.toString()}`, {
+        cache: "no-store",
+      })
       if (!res.ok) return
 
       if (round === "early-finals") {
@@ -175,8 +179,8 @@ export function AnalyticsClient() {
   }, [])
 
   useEffect(() => {
-    fetchAnalytics(selectedRound)
-  }, [selectedRound, fetchAnalytics])
+    fetchAnalytics(selectedRound, onlyPaidUsers)
+  }, [selectedRound, onlyPaidUsers, fetchAnalytics])
 
   useEffect(() => {
     setAnalyticsView("list")
@@ -207,6 +211,19 @@ export function AnalyticsClient() {
             {ROUND_LABELS[round]}
           </Button>
         ))}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm text-muted-foreground shrink-0">Users:</span>
+        <SegmentedControl
+          aria-label="Which users to include in analytics"
+          value={onlyPaidUsers ? "paid" : "all"}
+          onChange={(v) => setOnlyPaidUsers(v === "paid")}
+          options={[
+            { value: "all", label: "All" },
+            { value: "paid", label: "Paid only" },
+          ]}
+        />
       </div>
 
       {!loading && items.length > 0 && !earlyFinalsNoSeason && (

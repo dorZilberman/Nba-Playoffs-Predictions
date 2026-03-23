@@ -38,8 +38,12 @@ export function BracketPageClient() {
     try {
       const res = await fetch("/api/standings")
       if (res.ok) {
-        const data = await res.json()
-        setStandings(data)
+        const data = (await res.json()) as UserStanding[]
+        setStandings(
+          Array.isArray(data)
+            ? data.map((s) => ({ ...s, hasPayed: Boolean(s.hasPayed) }))
+            : []
+        )
       }
     } catch (error) {
       console.error("Error fetching standings:", error)
