@@ -34,10 +34,10 @@ async function dbConnect() {
     }
 
     cached.promise = mongoose.connect(uri, opts).then((mongoose) => {
-      console.log("✅ MongoDB connected successfully")
+      console.log("[nba-app:db] MongoDB driver connected")
       return mongoose
     }).catch((error) => {
-      console.error("❌ MongoDB connection error:", error.message)
+      console.error("[nba-app:db] MongoDB connection error:", error.message)
       throw error
     })
   }
@@ -61,14 +61,14 @@ export async function initDatabaseConnection() {
   }
   startupCheckInitiated = true
 
-  console.log("\n🔄 [DB] Checking MongoDB connection on startup...")
+  console.log("\n[nba-app:db] Checking MongoDB connection on startup...")
   console.log(`   URI: ${uri.replace(/:[^:@]+@/, ':****@')}`) // Hide password in logs
 
   try {
     await dbConnect()
-    console.log("✅ [DB] MongoDB connected successfully!\n")
+    console.log("[nba-app:db] MongoDB connected successfully\n")
   } catch (error: any) {
-    console.error("\n❌ [DB] MongoDB connection failed on startup:")
+    console.error("\n[nba-app:db] MongoDB connection failed on startup:")
     console.error(`   Error: ${error.message}`)
     console.error("\n   Please check:")
     console.error("   1. MONGODB_URI is set correctly in .env.local")
