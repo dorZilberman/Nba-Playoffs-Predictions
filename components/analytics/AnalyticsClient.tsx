@@ -45,6 +45,95 @@ function isEarlyFinalsBlock(
   return item.gameType === "earlyFinals"
 }
 
+const SERIES_SCORE_KEYS = ["4-0", "4-1", "4-2", "4-3"] as const
+
+function scoreKeysWithPicks(
+  breakdown: NonNullable<GameAnalytics["team1ScoreBreakdown"]>
+) {
+  return SERIES_SCORE_KEYS.filter((k) => (breakdown[k] ?? 0) > 0)
+}
+
+/** List view tooltip body: grouped by score when series is locked or has a winner; else flat names. */
+function ListSideSelectedByTooltipContent({
+  game,
+  side,
+}: {
+  game: GameAnalytics
+  side: "team1" | "team2"
+}) {
+  const teamUsers = side === "team1" ? game.team1Users : game.team2Users
+  const details =
+    side === "team1" ? game.team1ScoreDetails : game.team2ScoreDetails
+
+  const useGrouped =
+    game.gameType === "series" &&
+    (Boolean(game.locked) || Boolean(game.winner)) &&
+    details != null
+
+  if (!teamUsers.length) {
+    return (
+      <p className="text-xs text-muted-foreground">No picks for this team.</p>
+    )
+  }
+
+  if (!useGrouped) {
+    return (
+      <div className="space-y-1 text-left text-xs">
+        <div className="font-semibold text-foreground">Selected by</div>
+        <p className="text-muted-foreground leading-snug">
+          {teamUsers.map((u) => u.name).join(", ")}
+        </p>
+      </div>
+    )
+  }
+
+  const hasLinePicks = SERIES_SCORE_KEYS.some(
+    (k) => (details[k]?.length ?? 0) > 0
+  )
+  const accounted = new Set<string>()
+  for (const k of SERIES_SCORE_KEYS) {
+    for (const u of details[k] || []) accounted.add(u.userId)
+  }
+  const orphans = teamUsers.filter((u) => !accounted.has(u.id))
+
+  if (!hasLinePicks) {
+    return (
+      <div className="space-y-1 text-left text-xs">
+        <div className="font-semibold text-foreground">Selected by</div>
+        <p className="text-muted-foreground leading-snug">
+          {teamUsers.map((u) => u.name).join(", ")}
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-2 text-left text-xs">
+      <div className="font-semibold text-foreground">Selected by</div>
+      <div className="space-y-1.5 text-muted-foreground">
+        {SERIES_SCORE_KEYS.map((k) => {
+          const users = details[k]
+          if (!users?.length) return null
+          return (
+            <div key={k}>
+              <span className="font-medium text-foreground">{k}</span>
+              <span> — </span>
+              <span>{users.map((u) => u.userName).join(", ")}</span>
+            </div>
+          )
+        })}
+        {orphans.length > 0 && (
+          <div>
+            <span className="font-medium text-foreground">No line</span>
+            <span> — </span>
+            <span>{orphans.map((u) => u.name).join(", ")}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export function AnalyticsClient() {
   const [selectedRound, setSelectedRound] =
     useState<RoundType>("early-finals")
@@ -244,7 +333,7 @@ function EarlyFinalsBlockCard({
                     </div>
                     {row.users.length > 0 && (
                       <div className="text-xs text-muted-foreground pl-0.5">
-                        <span className="font-medium">Picked by: </span>
+                        <span className="font-medium">Selected by: </span>
                         {row.users.map((u) => u.name).join(", ")}
                       </div>
                     )}
@@ -349,65 +438,69 @@ function GameAnalyticsCard({
               />
             </div>
             {/* Score breakdown (for playoff series only) */}
-            {game.gameType === "series" && game.team1ScoreBreakdown && (
-              <div className="text-xs text-muted-foreground pl-2 space-y-1">
-                <div className="font-medium">Score predictions:</div>
-                <div className="flex justify-between w-full">
-                  {(["4-0", "4-1", "4-2", "4-3"] as const).map((score) => {
-                    const count = game.team1ScoreBreakdown![score] || 0
-                    const details = game.team1ScoreDetails?.[score] || []
-                    const points = game.team1ScorePoints?.[score]
-                    
-                    const tooltipContent = (
-                      <div className="space-y-2">
-                        {points !== null && points !== undefined && (
-                          <div className="whitespace-nowrap">
-                            <span className="font-semibold">Worth: </span>
-                            <span className="text-xs">
-                              {points} point{points !== 1 ? "s" : ""}
-                            </span>
-                          </div>
-                        )}
-                        {details.length > 0 && (
-                          <div>
-                            <div className="font-semibold mb-1">Selected by:</div>
-                            {details.map((detail) => (
-                              <div key={detail.userId} className="text-xs">
-                                {detail.userName}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        {details.length === 0 && (
-                          <div className="text-xs">No predictions</div>
-                        )}
-                      </div>
-                    )
-                    
-                    return (
-                      <Tooltip key={score} content={tooltipContent}>
-                        <div className="flex items-center justify-center gap-1 px-3 py-1.5 rounded bg-muted cursor-help">
-                          <span className="font-medium">{score}</span>
-                          <span className="text-muted-foreground">({count})</span>
+            {game.gameType === "series" &&
+              game.team1ScoreBreakdown &&
+              scoreKeysWithPicks(game.team1ScoreBreakdown).length > 0 && (
+                <div className="text-xs text-muted-foreground pl-2 space-y-1">
+                  <div className="font-medium">Score predictions:</div>
+                  <div className="flex flex-wrap gap-2">
+                    {scoreKeysWithPicks(game.team1ScoreBreakdown).map((score) => {
+                      const count = game.team1ScoreBreakdown![score] || 0
+                      const details = game.team1ScoreDetails?.[score] || []
+                      const points = game.team1ScorePoints?.[score]
+
+                      const tooltipContent = (
+                        <div className="space-y-2">
+                          {points !== null && points !== undefined && (
+                            <div className="whitespace-nowrap">
+                              <span className="font-semibold">Worth: </span>
+                              <span className="text-xs">
+                                {points} point{points !== 1 ? "s" : ""}
+                              </span>
+                            </div>
+                          )}
+                          {details.length > 0 && (
+                            <div>
+                              <div className="font-semibold mb-1">Selected by:</div>
+                              {details.map((detail) => (
+                                <div key={detail.userId} className="text-xs">
+                                  {detail.userName}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {details.length === 0 && (
+                            <div className="text-xs">No predictions</div>
+                          )}
                         </div>
-                      </Tooltip>
-                    )
-                  })}
+                      )
+
+                      return (
+                        <Tooltip key={score} content={tooltipContent}>
+                          <div className="flex items-center justify-center gap-1 px-3 py-1.5 rounded bg-muted cursor-help">
+                            <span className="font-medium">{score}</span>
+                            <span className="text-muted-foreground">({count})</span>
+                          </div>
+                        </Tooltip>
+                      )
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
-            {/* Users list */}
+              )}
             {game.team1Users.length > 0 && (
-              <div className="text-xs text-muted-foreground pl-2">
-                <div className="font-medium mb-1">Selected by:</div>
-                <div className="flex flex-wrap gap-1">
-                  {game.team1Users.map((user, idx) => (
-                    <span key={user.id}>
-                      {user.name}
-                      {idx < game.team1Users.length - 1 && ","}
-                    </span>
-                  ))}
-                </div>
+              <div className="pl-2 pt-0.5">
+                <Tooltip
+                  content={
+                    <ListSideSelectedByTooltipContent game={game} side="team1" />
+                  }
+                >
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground underline decoration-dotted underline-offset-2 hover:text-foreground cursor-help text-left"
+                  >
+                    Selected by ({game.team1Count})
+                  </button>
+                </Tooltip>
               </div>
             )}
           </div>
@@ -447,65 +540,69 @@ function GameAnalyticsCard({
               />
             </div>
             {/* Score breakdown (for playoff series only) */}
-            {game.gameType === "series" && game.team2ScoreBreakdown && (
-              <div className="text-xs text-muted-foreground pl-2 space-y-1">
-                <div className="font-medium">Score predictions:</div>
-                <div className="flex justify-between w-full">
-                  {(["4-0", "4-1", "4-2", "4-3"] as const).map((score) => {
-                    const count = game.team2ScoreBreakdown![score] || 0
-                    const details = game.team2ScoreDetails?.[score] || []
-                    const points = game.team2ScorePoints?.[score]
-                    
-                    const tooltipContent = (
-                      <div className="space-y-2">
-                        {points !== null && points !== undefined && (
-                          <div className="whitespace-nowrap">
-                            <span className="font-semibold">Worth: </span>
-                            <span className="text-xs">
-                              {points} point{points !== 1 ? "s" : ""}
-                            </span>
-                          </div>
-                        )}
-                        {details.length > 0 && (
-                          <div>
-                            <div className="font-semibold mb-1">Selected by:</div>
-                            {details.map((detail) => (
-                              <div key={detail.userId} className="text-xs">
-                                {detail.userName}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        {details.length === 0 && (
-                          <div className="text-xs">No predictions</div>
-                        )}
-                      </div>
-                    )
-                    
-                    return (
-                      <Tooltip key={score} content={tooltipContent}>
-                        <div className="flex items-center justify-center gap-1 px-3 py-1.5 rounded bg-muted cursor-help">
-                          <span className="font-medium">{score}</span>
-                          <span className="text-muted-foreground">({count})</span>
+            {game.gameType === "series" &&
+              game.team2ScoreBreakdown &&
+              scoreKeysWithPicks(game.team2ScoreBreakdown).length > 0 && (
+                <div className="text-xs text-muted-foreground pl-2 space-y-1">
+                  <div className="font-medium">Score predictions:</div>
+                  <div className="flex flex-wrap gap-2">
+                    {scoreKeysWithPicks(game.team2ScoreBreakdown).map((score) => {
+                      const count = game.team2ScoreBreakdown![score] || 0
+                      const details = game.team2ScoreDetails?.[score] || []
+                      const points = game.team2ScorePoints?.[score]
+
+                      const tooltipContent = (
+                        <div className="space-y-2">
+                          {points !== null && points !== undefined && (
+                            <div className="whitespace-nowrap">
+                              <span className="font-semibold">Worth: </span>
+                              <span className="text-xs">
+                                {points} point{points !== 1 ? "s" : ""}
+                              </span>
+                            </div>
+                          )}
+                          {details.length > 0 && (
+                            <div>
+                              <div className="font-semibold mb-1">Selected by:</div>
+                              {details.map((detail) => (
+                                <div key={detail.userId} className="text-xs">
+                                  {detail.userName}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {details.length === 0 && (
+                            <div className="text-xs">No predictions</div>
+                          )}
                         </div>
-                      </Tooltip>
-                    )
-                  })}
+                      )
+
+                      return (
+                        <Tooltip key={score} content={tooltipContent}>
+                          <div className="flex items-center justify-center gap-1 px-3 py-1.5 rounded bg-muted cursor-help">
+                            <span className="font-medium">{score}</span>
+                            <span className="text-muted-foreground">({count})</span>
+                          </div>
+                        </Tooltip>
+                      )
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
-            {/* Users list */}
+              )}
             {game.team2Users.length > 0 && (
-              <div className="text-xs text-muted-foreground pl-2">
-                <div className="font-medium mb-1">Selected by:</div>
-                <div className="flex flex-wrap gap-1">
-                  {game.team2Users.map((user, idx) => (
-                    <span key={user.id}>
-                      {user.name}
-                      {idx < game.team2Users.length - 1 && ","}
-                    </span>
-                  ))}
-                </div>
+              <div className="pl-2 pt-0.5">
+                <Tooltip
+                  content={
+                    <ListSideSelectedByTooltipContent game={game} side="team2" />
+                  }
+                >
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground underline decoration-dotted underline-offset-2 hover:text-foreground cursor-help text-left"
+                  >
+                    Selected by ({game.team2Count})
+                  </button>
+                </Tooltip>
               </div>
             )}
           </div>

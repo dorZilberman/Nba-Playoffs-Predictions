@@ -25,6 +25,83 @@ import {
 } from "@/app/lib/teamPrimaryColor"
 import { useTeams } from "@/components/teams-provider"
 
+const SERIES_SCORE_KEYS = ["4-0", "4-1", "4-2", "4-3"] as const
+type SeriesScoreKey = (typeof SERIES_SCORE_KEYS)[number]
+
+/** Score-grouped “Selected by” for playoff series once locked (deadline passed) or a winner exists — not only after final box score. */
+function seriesShowScoreGroupedSelectedBy(game: GameAnalytics) {
+  return (
+    game.gameType === "series" &&
+    (Boolean(game.locked) || Boolean(game.winner))
+  )
+}
+
+function scoreKeysWithPicks(
+  breakdown: NonNullable<GameAnalytics["team1ScoreBreakdown"]>
+): SeriesScoreKey[] {
+  return SERIES_SCORE_KEYS.filter((k) => (breakdown[k] ?? 0) > 0)
+}
+
+/** Tooltip "Selected by" for locked/finished series: grouped by predicted line; legacy picks without line listed separately. */
+function seriesPickedByTooltipContent(
+  row: AnalyticsChartRow,
+  game: GameAnalytics
+) {
+  const details =
+    row.fullName === game.team1
+      ? game.team1ScoreDetails
+      : row.fullName === game.team2
+        ? game.team2ScoreDetails
+        : undefined
+  if (!details) {
+    return row.users.length > 0
+      ? row.users.map((u) => u.name).join(", ")
+      : "—"
+  }
+
+  const lines: { key: string; label: string; names: string }[] = []
+  for (const k of SERIES_SCORE_KEYS) {
+    const u = details[k]
+    if (u?.length) {
+      lines.push({
+        key: k,
+        label: k,
+        names: u.map((x) => x.userName).join(", "),
+      })
+    }
+  }
+
+  const accounted = new Set<string>()
+  for (const k of SERIES_SCORE_KEYS) {
+    for (const u of details[k] || []) accounted.add(u.userId)
+  }
+  const orphans = row.users.filter((u) => !accounted.has(u.id))
+  if (orphans.length) {
+    lines.push({
+      key: "no-line",
+      label: "No line",
+      names: orphans.map((u) => u.name).join(", "),
+    })
+  }
+
+  if (lines.length === 0) {
+    return row.users.length > 0
+      ? row.users.map((u) => u.name).join(", ")
+      : "—"
+  }
+
+  return (
+    <div className="mt-1 space-y-1 text-left">
+      {lines.map(({ key, label, names }) => (
+        <div key={key}>
+          <span className="font-medium text-card-foreground">{label}:</span>{" "}
+          <span>{names}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export type AnalyticsViewMode = "list" | "pie" | "columns"
 
 /**
@@ -127,17 +204,22 @@ function AnalyticsPickTooltip({
   payload,
   total,
   pickedByLabel,
+  game,
 }: {
   active?: boolean
   /** Recharts marks nested `payload` optional; we narrow at runtime. */
   payload?: ReadonlyArray<{ payload?: AnalyticsChartRow }>
   total: number
   pickedByLabel: string
+  /** When set and the series is locked or has a winner, "Selected by" is grouped by predicted score line. */
+  game?: GameAnalytics
 }) {
   if (!active || !payload?.length) return null
   const row = payload[0]?.payload
   if (!row) return null
   const pct = total > 0 ? Math.round((row.value / total) * 100) : 0
+  const useScoreGroups = Boolean(game && seriesShowScoreGroupedSelectedBy(game))
+
   return (
     <div className="rounded-md border border-border bg-card px-3 py-2 text-sm text-card-foreground shadow-md max-w-[min(100vw-2rem,320px)]">
       <p className="font-semibold leading-snug">{row.fullName}</p>
@@ -145,12 +227,14 @@ function AnalyticsPickTooltip({
         {row.value} ({pct}%)
       </p>
       <div className="mt-2 pt-2 border-t border-border text-xs text-muted-foreground">
-        <span className="font-medium text-card-foreground">
-          {pickedByLabel}:{" "}
-        </span>
-        {row.users.length > 0
-          ? row.users.map((u) => u.name).join(", ")
-          : "—"}
+        <div className="font-medium text-card-foreground">{pickedByLabel}</div>
+        {useScoreGroups && game ? (
+          seriesPickedByTooltipContent(row, game)
+        ) : row.users.length > 0 ? (
+          <span className="mt-1 block">{row.users.map((u) => u.name).join(", ")}</span>
+        ) : (
+          <span className="mt-1 block">—</span>
+        )}
       </div>
     </div>
   )
@@ -245,6 +329,7 @@ export function GameAnalyticsWinnerPie({ game }: { game: GameAnalytics }) {
                   payload={payload}
                   total={game.totalPredictions}
                   pickedByLabel="Selected by"
+                  game={game}
                 />
               )}
             />
@@ -288,6 +373,7 @@ export function GameAnalyticsWinnerColumns({ game }: { game: GameAnalytics }) {
                 payload={payload}
                 total={game.totalPredictions}
                 pickedByLabel="Selected by"
+                game={game}
               />
             )}
           />
@@ -348,7 +434,7 @@ export function EarlyFinalsPie({ picks }: { picks: EarlyFinalsPickRow[] }) {
                   active={active}
                   payload={payload}
                   total={total}
-                  pickedByLabel="Picked by"
+                  pickedByLabel="Selected by"
                 />
               )}
             />
@@ -392,7 +478,7 @@ export function EarlyFinalsColumns({ picks }: { picks: EarlyFinalsPickRow[] }) {
                 active={active}
                 payload={payload}
                 total={total}
-                pickedByLabel="Picked by"
+                pickedByLabel="Selected by"
               />
             )}
           />

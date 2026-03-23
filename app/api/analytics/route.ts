@@ -34,6 +34,8 @@ export interface GameAnalytics {
   team1Users: Array<{ id: string; name: string }>
   team2Users: Array<{ id: string; name: string }>
   totalPredictions: number
+  /** Playoff series: true once start time has passed (predictions locked), even if no winner yet */
+  locked?: boolean
   // Score breakdowns for playoff series only
   team1ScoreBreakdown?: {
     "4-0": number
@@ -471,6 +473,7 @@ export async function GET(request: NextRequest) {
           team1Seed: s.team1Seed,
           team2Seed: s.team2Seed,
           winner: s.winner,
+          locked: isSeriesLocked(s),
           team1Count,
           team2Count,
           team1Percentage: total > 0 ? Math.round((team1Count / total) * 100) : 0,
