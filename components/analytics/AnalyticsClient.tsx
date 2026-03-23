@@ -205,7 +205,7 @@ function EarlyFinalsBlockCard({
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="min-w-0 space-y-4">
         {viewMode === "pie" && <EarlyFinalsPie picks={block.picks} />}
         {viewMode === "columns" && <EarlyFinalsColumns picks={block.picks} />}
         {viewMode === "list" && (
@@ -309,7 +309,7 @@ function GameAnalyticsCard({
           <p className="text-sm text-muted-foreground mt-1">{game.description}</p>
         )}
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="min-w-0 space-y-4">
         {viewMode === "pie" && <GameAnalyticsWinnerPie game={game} />}
         {viewMode === "columns" && (
           <GameAnalyticsWinnerColumns game={game} />

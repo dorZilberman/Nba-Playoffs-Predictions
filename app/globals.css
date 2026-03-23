@@ -57,3 +57,29 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Recharts pie: no rectangular focus/tap flash; wedge uses activeShape instead */
+.recharts-wrapper {
+  -webkit-tap-highlight-color: transparent;
+}
+.recharts-wrapper:focus,
+.recharts-wrapper:focus-visible {
+  outline: none !important;
+}
+.recharts-surface:focus,
+.recharts-surface:focus-visible {
+  outline: none !important;
+}
+.recharts-pie-sector,
+.recharts-pie-sector:focus,
+.recharts-pie-sector:focus-visible,
+.recharts-active-shape,
+.recharts-active-shape:focus,
+.recharts-active-shape:focus-visible {
+  outline: none !important;
+}
+.recharts-sector,
+.recharts-sector:focus,
+.recharts-sector:focus-visible {
+  outline: none !important;
+}

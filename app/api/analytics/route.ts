@@ -9,6 +9,10 @@ import EarlyFinalsPrediction from "@/app/lib/models/EarlyFinalsPrediction"
 import { calculateSeriesScore } from "@/app/lib/scoring/calculator"
 import { resolveFinalsOutcomesFromSeries } from "@/app/lib/scoring/earlyFinals"
 import { isEarlyFinalsLocked } from "@/app/lib/locking/earlyFinalsLock"
+import {
+  isPlayInGameLocked,
+  isSeriesLocked,
+} from "@/app/lib/locking/lockChecker"
 import { ROUND_BASE_VALUES } from "@/app/lib/scoring/types"
 import mongoose from "mongoose"
 
@@ -182,7 +186,7 @@ export async function GET(request: NextRequest) {
           gameType: "earlyFinals",
           gameId: "east-finalists",
           round: "early-finals",
-          title: "Eastern Conference champion (Early Finals)",
+          title: "Eastern Conference champion",
           actualWinner: outcomes.eastConferenceWinner ?? undefined,
           picks: aggregate((p) => p.eastFinalist),
           totalPredictions: total,
@@ -191,7 +195,7 @@ export async function GET(request: NextRequest) {
           gameType: "earlyFinals",
           gameId: "west-finalists",
           round: "early-finals",
-          title: "Western Conference champion (Early Finals)",
+          title: "Western Conference champion",
           actualWinner: outcomes.westConferenceWinner ?? undefined,
           picks: aggregate((p) => p.westFinalist),
           totalPredictions: total,
@@ -200,7 +204,7 @@ export async function GET(request: NextRequest) {
           gameType: "earlyFinals",
           gameId: "nba-champion",
           round: "early-finals",
-          title: "NBA champion (Early Finals)",
+          title: "NBA champion",
           actualWinner: outcomes.nbaChampion ?? undefined,
           picks: aggregate((p) => p.nbaChampion),
           totalPredictions: total,
@@ -218,6 +222,10 @@ export async function GET(request: NextRequest) {
       const playInGames = await PlayInGame.find({}).sort({ gameType: 1 })
 
       for (const game of playInGames) {
+        if (!game.winner && !isPlayInGameLocked(game)) {
+          continue
+        }
+
         // Get all predictions for this game
         const predictions = await Prediction.find({
           playInGameId: game._id,
@@ -283,6 +291,10 @@ export async function GET(request: NextRequest) {
       })
 
       for (const s of series) {
+        if (!s.winner && !isSeriesLocked(s)) {
+          continue
+        }
+
         // Get all predictions for this series
         const predictions = await Prediction.find({
           seriesId: s._id,

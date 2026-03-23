@@ -1,5 +1,7 @@
 "use client"
 
+import { useEffect, useRef, useState } from "react"
+import type { PointerEvent as ReactPointerEvent } from "react"
 import {
   Bar,
   BarChart,
@@ -8,6 +10,7 @@ import {
   Pie,
   PieChart,
   ResponsiveContainer,
+  Sector,
   Tooltip,
   XAxis,
   YAxis,
@@ -16,10 +19,62 @@ import type {
   EarlyFinalsPickRow,
   GameAnalytics,
 } from "@/app/api/analytics/route"
-import { teamPrimaryColorOrFallback } from "@/app/lib/teamPrimaryColor"
+import {
+  teamPrimaryColorOrFallback,
+  type TeamColorLookup,
+} from "@/app/lib/teamPrimaryColor"
 import { useTeams } from "@/components/teams-provider"
 
 export type AnalyticsViewMode = "list" | "pie" | "columns"
+
+/**
+ * Recharts keeps tooltip/active slice in internal state. Remount the chart when the user
+ * presses outside this container so the tooltip closes (incl. mobile tap outside).
+ */
+function useRechartsDismissOnOutsidePress() {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [resetKey, setResetKey] = useState(0)
+
+  useEffect(() => {
+    const onPointerDown = (e: PointerEvent) => {
+      const root = containerRef.current
+      if (!root) return
+      const t = e.target
+      if (!(t instanceof Node)) return
+      if (!root.contains(t)) {
+        setResetKey((k) => k + 1)
+      }
+    }
+    document.addEventListener("pointerdown", onPointerDown, true)
+    return () => document.removeEventListener("pointerdown", onPointerDown, true)
+  }, [])
+
+  return { containerRef, resetKey }
+}
+
+/** Stops the browser from focusing SVG slice paths on tap — avoids a second-tap focus ring. */
+function suppressPieSectorFocus(e: ReactPointerEvent<HTMLDivElement>) {
+  const t = e.target
+  if (t instanceof Element && t.closest(".recharts-pie-sector")) {
+    e.preventDefault()
+  }
+}
+
+/** Highlight active slice along the wedge (Recharts default active wrapper reads as a boxy ring). */
+function analyticsPieActiveSector(props: Record<string, unknown>) {
+  const outer =
+    typeof props.outerRadius === "number" && Number.isFinite(props.outerRadius)
+      ? props.outerRadius
+      : 0
+  return (
+    <Sector
+      {...props}
+      outerRadius={outer + 8}
+      stroke="hsl(var(--background))"
+      strokeWidth={2}
+    />
+  )
+}
 
 function truncateLabel(s: string, max = 22) {
   if (s.length <= max) return s
@@ -103,56 +158,106 @@ function ChartEmpty() {
   )
 }
 
+/** HTML legend under the pie — wraps on narrow screens (SVG slice labels clip on mobile). */
+function AnalyticsPieLegendRows({
+  rows,
+  getTeamByName,
+}: {
+  rows: AnalyticsChartRow[]
+  getTeamByName: TeamColorLookup
+}) {
+  const total = rows.reduce((s, r) => s + r.value, 0)
+  return (
+    <ul className="flex w-full min-w-0 flex-wrap justify-center gap-x-3 gap-y-2 px-1 pb-0.5 pt-2 text-xs">
+      {rows.map((row, i) => {
+        const pct = total > 0 ? Math.round((row.value / total) * 100) : 0
+        const color = teamPrimaryColorOrFallback(
+          row.fullName,
+          getTeamByName,
+          i
+        )
+        return (
+          <li
+            key={`${row.fullName}-${i}`}
+            className="flex max-w-[min(100%,12rem)] items-start gap-1.5 sm:max-w-[15rem]"
+          >
+            <span
+              className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
+              style={{ backgroundColor: color }}
+              aria-hidden
+            />
+            <span className="min-w-0 break-words text-left leading-snug text-foreground">
+              {row.fullName} ({pct}%)
+            </span>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
 export function GameAnalyticsWinnerPie({ game }: { game: GameAnalytics }) {
   const { getTeamByName } = useTeams()
+  const { containerRef, resetKey } = useRechartsDismissOnOutsidePress()
   if (game.totalPredictions === 0) return <ChartEmpty />
   const data = gameToRows(game)
   return (
-    <div className="w-full h-[260px] min-h-[260px]">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={data}
-            dataKey="value"
-            nameKey="name"
-            cx="50%"
-            cy="50%"
-            outerRadius={88}
-            paddingAngle={1}
-            label={({ name, percent }) =>
-              `${name} (${((percent ?? 0) * 100).toFixed(0)}%)`
-            }
+    <div ref={containerRef} className="flex w-full min-w-0 flex-col">
+      <div
+        className="h-[200px] min-h-[200px] w-full shrink-0 [&_*]:outline-none"
+        onPointerDownCapture={suppressPieSectorFocus}
+      >
+        <ResponsiveContainer key={resetKey} width="100%" height="100%">
+          <PieChart
+            accessibilityLayer={false}
+            margin={{ top: 8, right: 8, left: 8, bottom: 8 }}
+            tabIndex={-1}
           >
-            {data.map((row, i) => (
-              <Cell
-                key={i}
-                fill={teamPrimaryColorOrFallback(row.fullName, getTeamByName, i)}
-              />
-            ))}
-          </Pie>
-          <Tooltip
-            content={({ active, payload }) => (
-              <AnalyticsPickTooltip
-                active={active}
-                payload={payload}
-                total={game.totalPredictions}
-                pickedByLabel="Selected by"
-              />
-            )}
-          />
-        </PieChart>
-      </ResponsiveContainer>
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="50%"
+              outerRadius="78%"
+              paddingAngle={1}
+              label={false}
+              isAnimationActive={false}
+              activeShape={analyticsPieActiveSector}
+            >
+              {data.map((row, i) => (
+                <Cell
+                  key={i}
+                  fill={teamPrimaryColorOrFallback(row.fullName, getTeamByName, i)}
+                />
+              ))}
+            </Pie>
+            <Tooltip
+              content={({ active, payload }) => (
+                <AnalyticsPickTooltip
+                  active={active}
+                  payload={payload}
+                  total={game.totalPredictions}
+                  pickedByLabel="Selected by"
+                />
+              )}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      <AnalyticsPieLegendRows rows={data} getTeamByName={getTeamByName} />
     </div>
   )
 }
 
 export function GameAnalyticsWinnerColumns({ game }: { game: GameAnalytics }) {
   const { getTeamByName } = useTeams()
+  const { containerRef, resetKey } = useRechartsDismissOnOutsidePress()
   if (game.totalPredictions === 0) return <ChartEmpty />
   const data = gameToRows(game)
   return (
-    <div className="w-full h-[280px] min-h-[280px]">
-      <ResponsiveContainer width="100%" height="100%">
+    <div ref={containerRef} className="w-full h-[280px] min-h-[280px]">
+      <ResponsiveContainer key={resetKey} width="100%" height="100%">
         <BarChart
           data={data}
           margin={{ top: 8, right: 8, left: 0, bottom: 48 }}
@@ -196,56 +301,68 @@ export function GameAnalyticsWinnerColumns({ game }: { game: GameAnalytics }) {
 
 export function EarlyFinalsPie({ picks }: { picks: EarlyFinalsPickRow[] }) {
   const { getTeamByName } = useTeams()
+  const { containerRef, resetKey } = useRechartsDismissOnOutsidePress()
   const total = picks.reduce((s, p) => s + p.count, 0)
   if (total === 0) return <ChartEmpty />
   const data = earlyFinalsToRows(picks)
   return (
-    <div className="w-full h-[280px] min-h-[280px]">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={data}
-            dataKey="value"
-            nameKey="name"
-            cx="50%"
-            cy="50%"
-            outerRadius={88}
-            paddingAngle={0.5}
-            label={({ name, percent }) =>
-              `${name} (${((percent ?? 0) * 100).toFixed(0)}%)`
-            }
+    <div ref={containerRef} className="flex w-full min-w-0 flex-col">
+      <div
+        className="h-[220px] min-h-[220px] w-full shrink-0 [&_*]:outline-none"
+        onPointerDownCapture={suppressPieSectorFocus}
+      >
+        <ResponsiveContainer key={resetKey} width="100%" height="100%">
+          <PieChart
+            accessibilityLayer={false}
+            margin={{ top: 8, right: 8, left: 8, bottom: 8 }}
+            tabIndex={-1}
           >
-            {data.map((row, i) => (
-              <Cell
-                key={i}
-                fill={teamPrimaryColorOrFallback(row.fullName, getTeamByName, i)}
-              />
-            ))}
-          </Pie>
-          <Tooltip
-            content={({ active, payload }) => (
-              <AnalyticsPickTooltip
-                active={active}
-                payload={payload}
-                total={total}
-                pickedByLabel="Picked by"
-              />
-            )}
-          />
-        </PieChart>
-      </ResponsiveContainer>
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="50%"
+              outerRadius="78%"
+              paddingAngle={0.5}
+              label={false}
+              isAnimationActive={false}
+              activeShape={analyticsPieActiveSector}
+            >
+              {data.map((row, i) => (
+                <Cell
+                  key={i}
+                  fill={teamPrimaryColorOrFallback(row.fullName, getTeamByName, i)}
+                />
+              ))}
+            </Pie>
+            <Tooltip
+              content={({ active, payload }) => (
+                <AnalyticsPickTooltip
+                  active={active}
+                  payload={payload}
+                  total={total}
+                  pickedByLabel="Picked by"
+                />
+              )}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      <AnalyticsPieLegendRows rows={data} getTeamByName={getTeamByName} />
     </div>
   )
 }
 
 export function EarlyFinalsColumns({ picks }: { picks: EarlyFinalsPickRow[] }) {
   const { getTeamByName } = useTeams()
+  const { containerRef, resetKey } = useRechartsDismissOnOutsidePress()
   const total = picks.reduce((s, p) => s + p.count, 0)
   if (total === 0) return <ChartEmpty />
   const data = earlyFinalsToRows(picks)
   return (
-    <div className="w-full h-[300px] min-h-[300px]">
-      <ResponsiveContainer width="100%" height="100%">
+    <div ref={containerRef} className="w-full h-[300px] min-h-[300px]">
+      <ResponsiveContainer key={resetKey} width="100%" height="100%">
         <BarChart
           data={data}
           margin={{ top: 8, right: 8, left: 0, bottom: 64 }}
