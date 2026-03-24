@@ -9,7 +9,12 @@ import EarlyFinalsPrediction from "@/app/lib/models/EarlyFinalsPrediction"
 import User from "@/app/lib/models/User"
 import { calculateSeriesScore } from "@/app/lib/scoring/calculator"
 import { resolveFinalsOutcomesFromSeries } from "@/app/lib/scoring/earlyFinals"
-import { isEarlyFinalsLocked } from "@/app/lib/locking/earlyFinalsLock"
+import {
+  isEarlyFinalsLocked,
+  isAnalyticsAvailable,
+  seasonRawToPlayoffsInput,
+  seasonRawToAnalyticsInput,
+} from "@/app/lib/locking/earlyFinalsLock"
 import {
   isPlayInGameLocked,
   isSeriesLocked,
@@ -135,13 +140,7 @@ export async function GET(request: NextRequest) {
         } satisfies EarlyFinalsAnalyticsApiResponse)
       }
 
-      const lockRaw = rawSeason.earlyFinalsLockTime
-      if (
-        !isEarlyFinalsLocked({
-          earlyFinalsLockTime:
-            lockRaw != null ? new Date(lockRaw as Date) : undefined,
-        })
-      ) {
+      if (!isEarlyFinalsLocked(seasonRawToPlayoffsInput(rawSeason))) {
         return NextResponse.json({
           state: "hidden",
           reason: "not_locked",

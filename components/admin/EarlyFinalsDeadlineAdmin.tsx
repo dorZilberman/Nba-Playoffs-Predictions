@@ -22,8 +22,12 @@ export function EarlyFinalsDeadlineAdmin() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [localValue, setLocalValue] = useState("")
-  const [savedIso, setSavedIso] = useState<string | null>(null)
+
+  const [playoffsLocal, setPlayoffsLocal] = useState("")
+  const [playoffsSavedIso, setPlayoffsSavedIso] = useState<string | null>(null)
+
+  const [playInLocal, setPlayInLocal] = useState("")
+  const [playInSavedIso, setPlayInSavedIso] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -32,15 +36,19 @@ export function EarlyFinalsDeadlineAdmin() {
       const res = await fetch("/api/admin/season", { cache: "no-store" })
       if (!res.ok) throw new Error("Failed to load season")
       const season = await res.json()
-      const raw = season.earlyFinalsLockTime
-      const d =
-        raw != null && String(raw).trim() !== ""
-          ? new Date(raw as string)
-          : null
-      const iso =
-        d && !Number.isNaN(d.getTime()) ? d.toISOString() : null
-      setSavedIso(iso)
-      setLocalValue(iso ? toDatetimeLocalValue(iso) : "")
+      for (const [raw, setIso, setLocal] of [
+        [season.playoffsStartTime, setPlayoffsSavedIso, setPlayoffsLocal] as const,
+        [season.playInStartTime, setPlayInSavedIso, setPlayInLocal] as const,
+      ]) {
+        const d =
+          raw != null && String(raw).trim() !== ""
+            ? new Date(raw as string)
+            : null
+        const iso =
+          d && !Number.isNaN(d.getTime()) ? d.toISOString() : null
+        setIso(iso)
+        setLocal(iso ? toDatetimeLocalValue(iso) : "")
+      }
     } catch {
       setError("Could not load season.")
     } finally {
@@ -56,15 +64,30 @@ export function EarlyFinalsDeadlineAdmin() {
     setSaving(true)
     setError(null)
     try {
-      const payload =
-        localValue.trim() === ""
-          ? { earlyFinalsLockTime: null }
-          : { earlyFinalsLockTime: new Date(localValue).toISOString() }
+      const payload: Record<string, string | null> = {}
 
-      if (localValue.trim() !== "" && Number.isNaN(new Date(localValue).getTime())) {
-        setError("Invalid date.")
-        setSaving(false)
-        return
+      if (playoffsLocal.trim() === "") {
+        payload.playoffsStartTime = null
+      } else {
+        const d = new Date(playoffsLocal)
+        if (Number.isNaN(d.getTime())) {
+          setError("Invalid playoffs start date.")
+          setSaving(false)
+          return
+        }
+        payload.playoffsStartTime = d.toISOString()
+      }
+
+      if (playInLocal.trim() === "") {
+        payload.playInStartTime = null
+      } else {
+        const d = new Date(playInLocal)
+        if (Number.isNaN(d.getTime())) {
+          setError("Invalid play-in start date.")
+          setSaving(false)
+          return
+        }
+        payload.playInStartTime = d.toISOString()
       }
 
       const res = await fetch("/api/admin/season", {
@@ -86,34 +109,52 @@ export function EarlyFinalsDeadlineAdmin() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Early Finals Predictions</CardTitle>
+        <CardTitle>Season timing</CardTitle>
         <CardDescription>
-          Set when picks for Early Finals Predictions lock (East / West finalist
-          and NBA champion). Clearing the field removes the deadline until you
-          save a new one.
+          Playoffs start locks Early Finals picks and opens the What-if page at
+          that instant. Play-in start opens the Analytics page at that instant.
+          Clear a field and save to remove that gate until you set a new time.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4 max-w-md">
+      <CardContent className="space-y-6 max-w-md">
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : (
           <>
             <div className="space-y-2">
-              <Label htmlFor="early-finals-lock">Lock deadline (local time)</Label>
+              <Label htmlFor="playoffs-start">Playoffs start (lock + What-if)</Label>
               <input
-                id="early-finals-lock"
+                id="playoffs-start"
                 type="datetime-local"
                 step={60}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                value={localValue}
-                onChange={(e) => setLocalValue(e.target.value)}
+                value={playoffsLocal}
+                onChange={(e) => setPlayoffsLocal(e.target.value)}
               />
+              {playoffsSavedIso && (
+                <p className="text-xs text-muted-foreground">
+                  Saved: {new Date(playoffsSavedIso).toLocaleString()}
+                </p>
+              )}
             </div>
-            {savedIso && (
-              <p className="text-xs text-muted-foreground">
-                Saved: {new Date(savedIso).toLocaleString()}
-              </p>
-            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="playin-start">Play-in start (Analytics)</Label>
+              <input
+                id="playin-start"
+                type="datetime-local"
+                step={60}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                value={playInLocal}
+                onChange={(e) => setPlayInLocal(e.target.value)}
+              />
+              {playInSavedIso && (
+                <p className="text-xs text-muted-foreground">
+                  Saved: {new Date(playInSavedIso).toLocaleString()}
+                </p>
+              )}
+            </div>
+
             {error && (
               <p className="text-sm text-destructive" role="alert">
                 {error}
@@ -121,17 +162,18 @@ export function EarlyFinalsDeadlineAdmin() {
             )}
             <div className="flex flex-wrap gap-2">
               <Button type="button" onClick={handleSave} disabled={saving}>
-                {saving ? "Saving…" : "Save deadline"}
+                {saving ? "Saving…" : "Save times"}
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 disabled={saving}
                 onClick={() => {
-                  setLocalValue("")
+                  setPlayoffsLocal("")
+                  setPlayInLocal("")
                 }}
               >
-                Clear field
+                Clear both fields
               </Button>
             </div>
           </>

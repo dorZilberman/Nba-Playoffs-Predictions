@@ -4,7 +4,10 @@ import dbConnect from "@/app/lib/db"
 import Season from "@/app/lib/models/Season"
 import Team from "@/app/lib/models/Team"
 import EarlyFinalsPrediction from "@/app/lib/models/EarlyFinalsPrediction"
-import { isEarlyFinalsLocked } from "@/app/lib/locking/earlyFinalsLock"
+import {
+  isEarlyFinalsLocked,
+  seasonRawToPlayoffsInput,
+} from "@/app/lib/locking/earlyFinalsLock"
 import { z } from "zod"
 import mongoose from "mongoose"
 
@@ -23,7 +26,7 @@ export async function GET(request: NextRequest) {
     if (!rawSeason) {
       return NextResponse.json({
         seasonId: null,
-        earlyFinalsLockTime: null,
+        playoffsStartTime: null,
         locked: false,
         eastTeams: [],
         westTeams: [],
@@ -34,11 +37,8 @@ export async function GET(request: NextRequest) {
 
     const userIdParam = request.nextUrl.searchParams.get("userId") || user.id
     const isViewingOtherUser = userIdParam !== user.id
-    const lockRaw = rawSeason.earlyFinalsLockTime
-    const locked = isEarlyFinalsLocked({
-      earlyFinalsLockTime:
-        lockRaw != null ? new Date(lockRaw as Date) : undefined,
-    })
+    const locked = isEarlyFinalsLocked(seasonRawToPlayoffsInput(rawSeason))
+    const playoffsResolved = rawSeason.playoffsStartTime
 
     const [eastTeams, westTeams] = await Promise.all([
       Team.find({ conference: "east" }).sort({ name: 1 }).lean(),
@@ -65,14 +65,14 @@ export async function GET(request: NextRequest) {
     const canEdit =
       !isViewingOtherUser && !locked
 
-    const lockIso =
-      lockRaw != null
-        ? new Date(lockRaw as Date).toISOString()
+    const playoffsStartIso =
+      playoffsResolved != null
+        ? new Date(playoffsResolved as Date).toISOString()
         : null
 
     return NextResponse.json({
       seasonId: rawSeason._id.toString(),
-      earlyFinalsLockTime: lockIso,
+      playoffsStartTime: playoffsStartIso,
       locked,
       eastTeams: eastTeams.map((t) => ({ name: t.name, logoUrl: t.logoUrl })),
       westTeams: westTeams.map((t) => ({ name: t.name, logoUrl: t.logoUrl })),
@@ -98,13 +98,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "No active season" }, { status: 404 })
     }
 
-    const lockRawPut = rawSeason.earlyFinalsLockTime
-    if (
-      isEarlyFinalsLocked({
-        earlyFinalsLockTime:
-          lockRawPut != null ? new Date(lockRawPut as Date) : undefined,
-      })
-    ) {
+    if (isEarlyFinalsLocked(seasonRawToPlayoffsInput(rawSeason))) {
       return NextResponse.json(
         { error: "Early Finals predictions are locked" },
         { status: 400 }

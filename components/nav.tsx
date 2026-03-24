@@ -8,7 +8,12 @@ import { Moon, Sun, Menu, X } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
 
-export function Nav() {
+type NavProps = {
+  showWhatIf: boolean
+  showAnalytics: boolean
+}
+
+export function Nav({ showWhatIf, showAnalytics }: NavProps) {
   const pathname = usePathname()
   const { data: session } = useSession()
   const { theme, setTheme } = useTheme()
@@ -30,9 +35,9 @@ export function Nav() {
 
   const navItems = [
     { href: "/bracket", label: "Bracket" },
-    { href: "/analytics", label: "Analytics" },
+    ...(showAnalytics ? [{ href: "/analytics" as const, label: "Analytics" }] : []),
     { href: "/standings", label: "Standings" },
-    { href: "/what-if", label: "What if" },
+    ...(showWhatIf ? [{ href: "/what-if" as const, label: "What if" }] : []),
     { href: "/rules", label: "Rules" },
   ]
 

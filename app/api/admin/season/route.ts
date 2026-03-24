@@ -7,8 +7,10 @@ import { z } from "zod"
 export const dynamic = "force-dynamic"
 
 const patchSeasonSchema = z.object({
-  /** ISO datetime string, or null to clear the deadline */
-  earlyFinalsLockTime: z.union([z.string().min(1), z.null()]).optional(),
+  /** ISO datetime or null — early-finals lock + What-if opens at this instant */
+  playoffsStartTime: z.union([z.string().min(1), z.null()]).optional(),
+  /** ISO datetime or null — Analytics page/API available at or after this instant */
+  playInStartTime: z.union([z.string().min(1), z.null()]).optional(),
 })
 
 /** Raw MongoDB season document (from Season.collection) */
@@ -17,19 +19,20 @@ type SeasonCollectionDoc = {
   year: number
   isActive: boolean
   createdAt?: unknown
-  earlyFinalsLockTime?: unknown
+  playoffsStartTime?: unknown
+  playInStartTime?: unknown
 }
 
-/** Plain JSON for clients — Mongoose documents do not always serialize reliably in Route Handlers. */
+function isoFromRaw(raw: unknown): string | null {
+  if (raw == null) return null
+  const d = new Date(raw as string | Date | number)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toISOString()
+}
+
 function serializeSeason(season: SeasonCollectionDoc) {
-  const lockRaw = season.earlyFinalsLockTime
-  let earlyFinalsLockTime: string | null = null
-  if (lockRaw != null) {
-    const d = new Date(lockRaw as string | Date | number)
-    if (!Number.isNaN(d.getTime())) {
-      earlyFinalsLockTime = d.toISOString()
-    }
-  }
+  const playoffsStartTime = isoFromRaw(season.playoffsStartTime)
+  const playInStartTime = isoFromRaw(season.playInStartTime)
 
   const createdRaw = season.createdAt
   let createdAt: string | null = null
@@ -45,7 +48,8 @@ function serializeSeason(season: SeasonCollectionDoc) {
     year: season.year,
     isActive: season.isActive,
     createdAt,
-    earlyFinalsLockTime,
+    playoffsStartTime,
+    playInStartTime,
   }
 }
 
@@ -54,8 +58,6 @@ export async function GET(request: NextRequest) {
     await requireAdmin()
     await dbConnect()
 
-    // Read via native collection so earlyFinalsLockTime is never dropped by a
-    // stale cached Mongoose model (Next.js dev / strict schema paths).
     const season = await Season.collection.findOne({ isActive: true })
 
     if (!season) {
@@ -93,25 +95,44 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const parsed = patchSeasonSchema.parse(body)
 
-    if (parsed.earlyFinalsLockTime !== undefined) {
-      if (parsed.earlyFinalsLockTime === null) {
-        await Season.collection.updateOne(
-          { _id: season._id },
-          { $unset: { earlyFinalsLockTime: "" } }
-        )
+    const $set: Record<string, Date> = {}
+    const $unset: Record<string, string> = {}
+
+    if (parsed.playoffsStartTime !== undefined) {
+      if (parsed.playoffsStartTime === null) {
+        $unset.playoffsStartTime = ""
       } else {
-        const d = new Date(parsed.earlyFinalsLockTime)
+        const d = new Date(parsed.playoffsStartTime)
         if (Number.isNaN(d.getTime())) {
           return NextResponse.json(
-            { error: "Invalid earlyFinalsLockTime" },
+            { error: "Invalid playoffsStartTime" },
             { status: 400 }
           )
         }
-        await Season.collection.updateOne(
-          { _id: season._id },
-          { $set: { earlyFinalsLockTime: d } }
-        )
+        $set.playoffsStartTime = d
       }
+    }
+
+    if (parsed.playInStartTime !== undefined) {
+      if (parsed.playInStartTime === null) {
+        $unset.playInStartTime = ""
+      } else {
+        const d = new Date(parsed.playInStartTime)
+        if (Number.isNaN(d.getTime())) {
+          return NextResponse.json(
+            { error: "Invalid playInStartTime" },
+            { status: 400 }
+          )
+        }
+        $set.playInStartTime = d
+      }
+    }
+
+    const updateDoc: Record<string, unknown> = {}
+    if (Object.keys($set).length > 0) updateDoc.$set = $set
+    if (Object.keys($unset).length > 0) updateDoc.$unset = $unset
+    if (Object.keys(updateDoc).length > 0) {
+      await Season.collection.updateOne({ _id: season._id }, updateDoc)
     }
 
     const updated = await Season.collection.findOne({ _id: season._id })

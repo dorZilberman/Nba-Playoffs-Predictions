@@ -19,7 +19,7 @@ type TeamOption = { name: string; logoUrl: string }
 
 interface EarlyFinalsApiResponse {
   seasonId: string | null
-  earlyFinalsLockTime: string | null
+  playoffsStartTime: string | null
   locked: boolean
   eastTeams: TeamOption[]
   westTeams: TeamOption[]
@@ -411,16 +411,16 @@ export function EarlyFinalsPredictionsSection({
 
   return (
     <div className="space-y-6">
-      {data.earlyFinalsLockTime && !data.locked && (
+      {data.playoffsStartTime && !data.locked && (
         <div className="space-y-1">
           <div className="text-xs text-muted-foreground">
-            Prediction Deadline at: {formatToIST(data.earlyFinalsLockTime)}
+            Prediction Deadline at: {formatToIST(data.playoffsStartTime)}
           </div>
-          <LockCountdown lockAt={data.earlyFinalsLockTime} hide={false} />
+          <LockCountdown lockAt={data.playoffsStartTime} hide={false} />
         </div>
       )}
 
-      {!data.earlyFinalsLockTime && (
+      {!data.playoffsStartTime && (
         <p className="text-xs text-muted-foreground">
           An admin will set a lock deadline for this round. You can edit your
           picks until then.

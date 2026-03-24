@@ -8,7 +8,11 @@ import PlayInGame from "@/app/lib/models/PlayInGame"
 import Season from "@/app/lib/models/Season"
 import EarlyFinalsPrediction from "@/app/lib/models/EarlyFinalsPrediction"
 import { isSeriesLocked, isPlayInGameLocked } from "@/app/lib/locking/lockChecker"
-import { isEarlyFinalsLocked } from "@/app/lib/locking/earlyFinalsLock"
+import {
+  isEarlyFinalsLocked,
+  isWhatIfAvailable,
+  seasonRawToPlayoffsInput,
+} from "@/app/lib/locking/earlyFinalsLock"
 
 export interface WhatIfUser {
   userId: string
@@ -67,27 +71,27 @@ export async function GET() {
     const user = await requireAuth()
     await dbConnect()
 
-    const season = await Season.findOne({ isActive: true })
-    if (!season) {
-      return NextResponse.json({
-        users: [] as WhatIfUser[],
-        series: [] as ReturnType<typeof serializeSeries>[],
-        playInGames: [] as ReturnType<typeof serializePlayIn>[],
-        predictions: [] as WhatIfPredictionRow[],
-        earlyFinals: [] as WhatIfEarlyFinalsRow[],
-      })
+    const rawSeason = await Season.collection.findOne({ isActive: true })
+    const playoffsInput = seasonRawToPlayoffsInput(rawSeason)
+    if (!rawSeason || !isWhatIfAvailable(playoffsInput)) {
+      return NextResponse.json(
+        { error: "What-if is not available yet" },
+        { status: 403 }
+      )
     }
+
+    const seasonId = rawSeason._id
 
     const [users, allSeries, allPlayInGames, allPredictions, earlyDocs] =
       await Promise.all([
         User.find({}).lean(),
-        Series.find({ seasonId: season._id }).lean(),
-        PlayInGame.find({ seasonId: season._id }).lean(),
+        Series.find({ seasonId }).lean(),
+        PlayInGame.find({ seasonId }).lean(),
         Prediction.find({}).lean(),
-        EarlyFinalsPrediction.find({ seasonId: season._id }).lean(),
+        EarlyFinalsPrediction.find({ seasonId }).lean(),
       ])
 
-    const earlyLocked = isEarlyFinalsLocked(season)
+    const earlyLocked = isEarlyFinalsLocked(playoffsInput)
     const earlyFiltered = earlyLocked
       ? earlyDocs
       : earlyDocs.filter(

@@ -4,8 +4,12 @@ export interface ISeason {
   _id: string
   year: number
   isActive: boolean
-  /** When set, Early Finals predictions lock at this time (admin-controlled) */
-  earlyFinalsLockTime?: Date
+  /**
+   * Playoffs start: early-finals picks lock at this time; What-if opens at or after this time.
+   */
+  playoffsStartTime?: Date
+  /** Analytics page is hidden until this instant (inclusive). */
+  playInStartTime?: Date
   createdAt: Date
 }
 
@@ -20,7 +24,10 @@ const SeasonSchema = new Schema<ISeason>(
       type: Boolean,
       default: true,
     },
-    earlyFinalsLockTime: {
+    playoffsStartTime: {
+      type: Date,
+    },
+    playInStartTime: {
       type: Date,
     },
     createdAt: {
@@ -33,8 +40,6 @@ const SeasonSchema = new Schema<ISeason>(
   }
 )
 
-// Next.js dev HMR can keep an old Season model without newer schema paths;
-// dropping it forces Mongoose to recompile with the current schema.
 if (process.env.NODE_ENV === "development" && mongoose.models.Season) {
   delete mongoose.models.Season
 }
