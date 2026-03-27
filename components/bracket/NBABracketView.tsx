@@ -169,6 +169,7 @@ export function NBABracketView({
     <div className="w-full space-y-6">
       <CollapsibleSection title="Early Finals Predictions">
         <EarlyFinalsPredictionsSection
+          series={series}
           viewingUserId={viewingUserId}
           isViewingOtherUser={isViewingOtherUser}
           viewingUserName={viewingUserName}

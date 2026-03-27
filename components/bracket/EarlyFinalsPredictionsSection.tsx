@@ -1,6 +1,12 @@
 "use client"
 
-import { useCallback, useEffect, useState, type ReactNode } from "react"
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -14,6 +20,15 @@ import { BracketTeamBox } from "@/components/bracket/BracketTeamBox"
 import { formatToIST } from "@/app/lib/utils/timezone"
 import { cn } from "@/app/lib/utils/cn"
 import { Lock } from "lucide-react"
+import type { ISeries } from "@/app/lib/models/Series"
+import {
+  calculateEarlyFinalsScore,
+  resolveFinalsOutcomesFromSeries,
+} from "@/app/lib/scoring/earlyFinals"
+
+function formatPointsLabel(n: number): string {
+  return n === 1 ? "1 point" : `${n} points`
+}
 
 type TeamOption = { name: string; logoUrl: string }
 
@@ -32,6 +47,8 @@ interface EarlyFinalsApiResponse {
 }
 
 interface EarlyFinalsPredictionsSectionProps {
+  /** Playoff series (for resolving actual conference / NBA champs for scoring). */
+  series?: ISeries[]
   viewingUserId?: string
   isViewingOtherUser?: boolean
   viewingUserName?: string
@@ -62,6 +79,8 @@ function ConferenceChampionSlot({
   canEditSlot,
   picksHiddenFromViewer,
   onOpenPicker,
+  /** Actual conference winner from the bracket (when decided); drives yellow ✓ / wrong X */
+  actualConferenceWinner,
 }: {
   selectedTeam: string | null
   roundLocked: boolean
@@ -69,6 +88,7 @@ function ConferenceChampionSlot({
   /** Another user's picks before lock — TBD + big lock like unset MatchupBox */
   picksHiddenFromViewer: boolean
   onOpenPicker: () => void
+  actualConferenceWinner?: string | null
 }) {
   const hasPick = !!selectedTeam
   const showBigLock = picksHiddenFromViewer
@@ -106,11 +126,14 @@ function ConferenceChampionSlot({
         {selectedTeam ? (
           <BracketTeamBox
             team={selectedTeam}
-            isWinner={false}
+            isWinner={
+              !!actualConferenceWinner &&
+              selectedTeam === actualConferenceWinner
+            }
             wins={0}
             hasScore={false}
-            hasPrediction
-            actualWinner={undefined}
+            hasPrediction={!!selectedTeam}
+            actualWinner={actualConferenceWinner ?? undefined}
           />
         ) : (
           <DashedTbdRow />
@@ -138,6 +161,8 @@ function EarlyFinalsChampionSlot({
   canEditSlot,
   picksHiddenFromViewer,
   onSelectChampion,
+  /** Actual NBA champion from the finals series (when decided) */
+  actualNbaChampion,
 }: {
   westTeam: string | null
   eastTeam: string | null
@@ -146,6 +171,7 @@ function EarlyFinalsChampionSlot({
   canEditSlot: boolean
   picksHiddenFromViewer: boolean
   onSelectChampion: (name: string) => void
+  actualNbaChampion?: string | null
 }) {
   const both = !!(westTeam && eastTeam)
   const showBigLock = picksHiddenFromViewer
@@ -180,11 +206,13 @@ function EarlyFinalsChampionSlot({
             >
               <BracketTeamBox
                 team={westTeam}
-                isWinner={false}
+                isWinner={
+                  !!actualNbaChampion && westTeam === actualNbaChampion
+                }
                 wins={0}
                 hasScore={false}
                 hasPrediction={champion === westTeam}
-                actualWinner={undefined}
+                actualWinner={actualNbaChampion ?? undefined}
               />
             </div>
             <div className="text-center text-[8px] md:text-[9px] text-muted-foreground">
@@ -208,11 +236,13 @@ function EarlyFinalsChampionSlot({
             >
               <BracketTeamBox
                 team={eastTeam}
-                isWinner={false}
+                isWinner={
+                  !!actualNbaChampion && eastTeam === actualNbaChampion
+                }
                 wins={0}
                 hasScore={false}
                 hasPrediction={champion === eastTeam}
-                actualWinner={undefined}
+                actualWinner={actualNbaChampion ?? undefined}
               />
             </div>
           </>
@@ -269,6 +299,7 @@ function ColumnChrome({
 }
 
 export function EarlyFinalsPredictionsSection({
+  series = [],
   viewingUserId,
   isViewingOtherUser = false,
   viewingUserName = "User",
@@ -326,6 +357,23 @@ export function EarlyFinalsPredictionsSection({
       setChampion("")
     }
   }, [east, west, champion])
+
+  const resolvedOutcomes = useMemo(
+    () =>
+      resolveFinalsOutcomesFromSeries(
+        series.map((s) => ({
+          round: s.round,
+          conference: s.conference,
+          winner: s.winner,
+        }))
+      ),
+    [series]
+  )
+
+  const earlyFinalsPointsTotal = useMemo(
+    () => calculateEarlyFinalsScore(data?.prediction ?? null, resolvedOutcomes),
+    [data?.prediction, resolvedOutcomes]
+  )
 
   const handleSave = async () => {
     if (!east || !west || !champion) {
@@ -409,6 +457,9 @@ export function EarlyFinalsPredictionsSection({
       data.locked ||
       picksHiddenFromViewer)
 
+  const showEarlyFinalsPointsRow =
+    roundLocked && !picksHiddenFromViewer && teamsReady && showBracketStrip
+
   return (
     <div className="space-y-6">
       {data.playoffsStartTime && !data.locked && (
@@ -433,7 +484,9 @@ export function EarlyFinalsPredictionsSection({
             <p>Viewing {viewingUserName}&apos;s early finals picks.</p>
           ) : (
             <p className="inline-flex flex-wrap items-center justify-center gap-1">
-              <span>No prediction submitted</span>
+              <span>
+                No prediction submitted ({formatPointsLabel(0)})
+              </span>
               <Lock className="h-3.5 w-3.5 shrink-0" />
             </p>
           )}
@@ -474,6 +527,7 @@ export function EarlyFinalsPredictionsSection({
                 canEditSlot={editable}
                 picksHiddenFromViewer={picksHiddenFromViewer}
                 onOpenPicker={() => setPicker("west")}
+                actualConferenceWinner={resolvedOutcomes.westConferenceWinner}
               />
             </ColumnChrome>
           </div>
@@ -492,6 +546,7 @@ export function EarlyFinalsPredictionsSection({
                 canEditSlot={editable}
                 picksHiddenFromViewer={picksHiddenFromViewer}
                 onOpenPicker={() => setPicker("east")}
+                actualConferenceWinner={resolvedOutcomes.eastConferenceWinner}
               />
             </ColumnChrome>
           </div>
@@ -525,10 +580,25 @@ export function EarlyFinalsPredictionsSection({
                   canEditSlot={editable}
                   picksHiddenFromViewer={picksHiddenFromViewer}
                   onSelectChampion={setChampion}
+                  actualNbaChampion={resolvedOutcomes.nbaChampion}
                 />
               </div>
             </ColumnChrome>
           </div>
+        </div>
+      )}
+
+      {showEarlyFinalsPointsRow && (
+        <div className="text-center text-[8px] md:text-[9px] text-muted-foreground font-medium mt-2">
+          {data.prediction ? (
+            <span>
+              Points from early finals ({formatPointsLabel(earlyFinalsPointsTotal)})
+            </span>
+          ) : (
+            <span>
+              No prediction submitted ({formatPointsLabel(0)})
+            </span>
+          )}
         </div>
       )}
 
