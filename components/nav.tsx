@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Moon, Sun, Menu, X } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
+import type { UserStanding } from "@/app/api/standings/route"
 
 type NavProps = {
   showWhatIf: boolean
@@ -19,6 +20,10 @@ export function Nav({ showWhatIf, showAnalytics }: NavProps) {
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [standingsSummary, setStandingsSummary] = useState<{
+    totalScore: number
+    rank: number
+  } | null>(null)
 
   useEffect(() => {
     setMounted(true)
@@ -28,6 +33,42 @@ export function Nav({ showWhatIf, showAnalytics }: NavProps) {
   useEffect(() => {
     setIsSidebarOpen(false)
   }, [pathname])
+
+  useEffect(() => {
+    const uid = session?.user?.id
+    if (!uid) {
+      setStandingsSummary(null)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch("/api/standings", { cache: "no-store" })
+        if (!res.ok || cancelled) return
+        const data = (await res.json()) as UserStanding[] | { error?: string }
+        if (!Array.isArray(data) || cancelled) return
+        if (data.length === 0) {
+          setStandingsSummary(null)
+          return
+        }
+        const sorted = [...data].sort((a, b) => b.totalScore - a.totalScore)
+        const idx = sorted.findIndex((s) => s.userId === uid)
+        if (idx < 0 || cancelled) {
+          setStandingsSummary(null)
+          return
+        }
+        setStandingsSummary({
+          totalScore: sorted[idx].totalScore,
+          rank: idx + 1,
+        })
+      } catch {
+        if (!cancelled) setStandingsSummary(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [session?.user?.id, pathname])
 
   if (!session) {
     return null
@@ -71,7 +112,6 @@ export function Nav({ showWhatIf, showAnalytics }: NavProps) {
             <Link href="/bracket" className="text-xl font-bold">
               NBA Playoffs Predictions
             </Link>
-            {/* Desktop Navigation */}
             <div className="hidden md:flex gap-4">
               {navItems.map((item) => (
                 <Link
@@ -88,7 +128,16 @@ export function Nav({ showWhatIf, showAnalytics }: NavProps) {
               ))}
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 md:gap-4">
+            {standingsSummary && (
+              <span
+                className="hidden md:inline shrink-0 text-sm text-muted-foreground whitespace-nowrap"
+                aria-live="polite"
+              >
+                Total: {standingsSummary.totalScore} points, rank #
+                {standingsSummary.rank}
+              </span>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -163,6 +212,15 @@ export function Nav({ showWhatIf, showAnalytics }: NavProps) {
 
           {/* Sidebar Footer */}
           <div className="p-4 border-t space-y-3">
+            {standingsSummary && (
+              <p
+                className="px-4 text-sm text-muted-foreground"
+                aria-live="polite"
+              >
+                Total: {standingsSummary.totalScore} points, rank #
+                {standingsSummary.rank}
+              </p>
+            )}
             <div className="flex items-center gap-2 px-4 py-2">
               <span className="text-sm text-muted-foreground">
                 {session.user.name}

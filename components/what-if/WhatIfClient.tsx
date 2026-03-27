@@ -25,6 +25,7 @@ import {
   calculatePlayInScore,
   calculateSeriesScore,
 } from "@/app/lib/scoring/calculator"
+import { cn } from "@/app/lib/utils/cn"
 import {
   calculateEarlyFinalsScore,
   resolveFinalsOutcomesFromSeries,
@@ -570,19 +571,40 @@ export function WhatIfClient() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedStandings.map((row, index) => (
-                  <TableRow key={row.userId}>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell className="font-medium">{row.userName}</TableCell>
-                    <TableCell className="font-bold">{row.totalScore}</TableCell>
-                    <TableCell>{row.earlyFinalsScore}</TableCell>
-                    <TableCell>{row.playInScore}</TableCell>
-                    <TableCell>{row.firstRoundScore}</TableCell>
-                    <TableCell>{row.secondRoundScore}</TableCell>
-                    <TableCell>{row.conferenceFinalsScore}</TableCell>
-                    <TableCell>{row.finalsScore}</TableCell>
-                  </TableRow>
-                ))}
+                {sortedStandings.map((row, index) => {
+                  const isYou =
+                    !!session?.user?.id && row.userId === session.user.id
+                  return (
+                    <TableRow
+                      key={row.userId}
+                      className={cn(
+                        isYou
+                          ? "bg-primary/10 hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20 border-l-2 border-l-primary font-semibold"
+                          : undefined
+                      )}
+                      data-current-user={isYou || undefined}
+                    >
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell
+                        className={cn("font-medium", isYou && "font-semibold")}
+                      >
+                        {row.userName}
+                        {isYou && (
+                          <span className="ml-2 text-xs font-normal text-muted-foreground">
+                            (you)
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-bold">{row.totalScore}</TableCell>
+                      <TableCell>{row.earlyFinalsScore}</TableCell>
+                      <TableCell>{row.playInScore}</TableCell>
+                      <TableCell>{row.firstRoundScore}</TableCell>
+                      <TableCell>{row.secondRoundScore}</TableCell>
+                      <TableCell>{row.conferenceFinalsScore}</TableCell>
+                      <TableCell>{row.finalsScore}</TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           </div>

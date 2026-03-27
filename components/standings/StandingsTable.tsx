@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
+import { cn } from "@/app/lib/utils/cn"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Table,
@@ -30,6 +32,7 @@ type SortDirection = "asc" | "desc"
 
 export function StandingsTable() {
   const router = useRouter()
+  const { data: session } = useSession()
   const [standings, setStandings] = useState<UserStanding[]>([])
   const [loading, setLoading] = useState(true)
   const [sortField, setSortField] = useState<SortField>("totalScore")
@@ -185,17 +188,31 @@ export function StandingsTable() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedStandings.map((standing, index) => (
+              {sortedStandings.map((standing, index) => {
+                const isYou =
+                  !!session?.user?.id && standing.userId === session.user.id
+                return (
                 <TableRow
                   key={standing.userId}
-                  className="cursor-pointer hover:bg-muted/50"
+                  className={cn(
+                    "cursor-pointer",
+                    isYou
+                      ? "bg-primary/10 hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20 border-l-2 border-l-primary font-semibold"
+                      : "hover:bg-muted/50"
+                  )}
+                  data-current-user={isYou || undefined}
                   onClick={() => {
                     router.push(`/bracket?userId=${standing.userId}`)
                   }}
                 >
                   <TableCell>{index + 1}</TableCell>
-                  <TableCell className="font-medium">
+                  <TableCell className={cn("font-medium", isYou && "font-semibold")}>
                     {standing.userName}
+                    {isYou && (
+                      <span className="ml-2 text-xs font-normal text-muted-foreground">
+                        (you)
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell className="font-bold">
                     {standing.totalScore}
@@ -207,7 +224,8 @@ export function StandingsTable() {
                   <TableCell>{standing.conferenceFinalsScore}</TableCell>
                   <TableCell>{standing.finalsScore}</TableCell>
                 </TableRow>
-              ))}
+                )
+              })}
             </TableBody>
           </Table>
         </div>
