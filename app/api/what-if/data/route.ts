@@ -7,7 +7,6 @@ import Series from "@/app/lib/models/Series"
 import PlayInGame from "@/app/lib/models/PlayInGame"
 import Season from "@/app/lib/models/Season"
 import EarlyFinalsPrediction from "@/app/lib/models/EarlyFinalsPrediction"
-import { isSeriesLocked, isPlayInGameLocked } from "@/app/lib/locking/lockChecker"
 import {
   isEarlyFinalsLocked,
   isWhatIfAvailable,
@@ -132,7 +131,6 @@ export async function GET() {
             : p.seriesId.toString()
         const series = seriesById.get(sid)
         if (!series) continue
-        if (!isSeriesLocked(series as any) && !series.winner) continue
         predictionsOut.push({
           userId: uid,
           seriesId: sid,
@@ -151,7 +149,6 @@ export async function GET() {
             : p.playInGameId.toString()
         const game = playInById.get(gid)
         if (!game) continue
-        if (!isPlayInGameLocked(game as any) && !game.winner) continue
         predictionsOut.push({
           userId: uid,
           playInGameId: gid,

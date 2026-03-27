@@ -10,6 +10,7 @@ import { BracketTeamBox } from "@/components/bracket/BracketTeamBox"
 import { cn } from "@/app/lib/utils/cn"
 import type { ISeries } from "@/app/lib/models/Series"
 import type { IPrediction } from "@/app/lib/models/Prediction"
+import { calculateSeriesScore } from "@/app/lib/scoring/calculator"
 
 export interface WhatIfBracketMode {
   eligibleSeriesIds: Set<string>
@@ -63,6 +64,29 @@ interface Series {
     team2Wins: number
   }
   status?: string
+}
+
+function bracketSeriesToISeriesForScoring(s: Series): ISeries {
+  const startTime = new Date(s.startTime)
+  return {
+    _id: s._id,
+    seasonId: (s as unknown as Partial<ISeries>).seasonId ?? ({} as ISeries["seasonId"]),
+    round: s.round,
+    conference: s.conference,
+    team1: s.team1,
+    team2: s.team2,
+    team1Seed: s.team1Seed,
+    team2Seed: s.team2Seed,
+    startTime,
+    currentScore: s.currentScore ?? { team1Wins: 0, team2Wins: 0 },
+    winner: s.winner,
+    createdAt: startTime,
+    updatedAt: startTime,
+  }
+}
+
+function formatPointsLabel(n: number): string {
+  return n === 1 ? "1 point" : `${n} points`
 }
 
 interface PlayoffBracketVisualProps {
@@ -949,6 +973,15 @@ function MatchupBox({
   const showBigLock = !teamsSet && !isAdmin
   const showSmallLock = teamsSet && (isLockedByTime || isLockedByWinner) && (!isAdmin || isViewingOtherUser)
 
+  const playoffPointsEarned =
+    series.winner && prediction?.predictedScore
+      ? calculateSeriesScore(
+          prediction,
+          bracketSeriesToISeriesForScoring(series),
+          series.round
+        ).points
+      : null
+
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
@@ -1020,7 +1053,14 @@ function MatchupBox({
           <span className="text-[8px] md:text-[9px] text-muted-foreground font-medium">
             {isViewingOtherUser && viewingUserName 
               ? `${viewingUserName.split(' ')[0]}'s prediction:`
-              : "Predicted:"} {prediction.predictedScore.team1Wins}-{prediction.predictedScore.team2Wins}
+              : "Predicted:"}{" "}
+            {prediction.predictedScore.team1Wins}-{prediction.predictedScore.team2Wins}
+            {playoffPointsEarned !== null && (
+              <span className="whitespace-nowrap">
+                {" "}
+                ({formatPointsLabel(playoffPointsEarned)})
+              </span>
+            )}
           </span>
           {showSmallLock && (
             <Lock className="h-3 w-3 text-muted-foreground" />
@@ -1031,7 +1071,7 @@ function MatchupBox({
       {showSmallLock && !prediction?.predictedScore && (
         <div className="text-center mt-1 flex items-center justify-center gap-1">
           <span className="text-[8px] md:text-[9px] text-muted-foreground font-medium">
-            No prediction submitted
+            No prediction submitted ({formatPointsLabel(0)})
           </span>
           <Lock className="h-3 w-3 text-muted-foreground" />
         </div>

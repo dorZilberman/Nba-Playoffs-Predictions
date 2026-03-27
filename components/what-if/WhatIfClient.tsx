@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { useSession } from "next-auth/react"
 import { PlayoffBracket } from "@/components/bracket/PlayoffBracket"
 import { Button } from "@/components/ui/button"
 import {
@@ -309,6 +310,7 @@ type SortField =
 type SortDirection = "asc" | "desc"
 
 export function WhatIfClient() {
+  const { data: session } = useSession()
   const [payload, setPayload] = useState<WhatIfPayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -402,6 +404,14 @@ export function WhatIfClient() {
     setHypoForSeries,
     clearHypoSeries,
   ])
+
+  const myBracketPredictions = useMemo(() => {
+    const uid = session?.user?.id
+    if (!payload || !uid) return []
+    return payload.predictions
+      .filter((p) => p.userId === uid)
+      .map(rowToIPrediction)
+  }, [payload, session?.user?.id])
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -619,7 +629,7 @@ export function WhatIfClient() {
           )}
           <PlayoffBracket
             series={displaySeries}
-            predictions={[]}
+            predictions={myBracketPredictions}
             readOnly
             whatIfMode={whatIfMode}
           />

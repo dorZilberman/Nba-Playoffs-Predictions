@@ -6,6 +6,11 @@ import { TeamDisplay } from "@/components/ui/TeamDisplay"
 import { Lock, X } from "lucide-react"
 import type { IPlayInGame } from "@/app/lib/models/PlayInGame"
 import type { IPrediction } from "@/app/lib/models/Prediction"
+import { calculatePlayInScore } from "@/app/lib/scoring/calculator"
+
+function formatPointsLabel(n: number): string {
+  return n === 1 ? "1 point" : `${n} points`
+}
 
 interface PlayInBracketVisualProps {
   games: IPlayInGame[]
@@ -313,20 +318,8 @@ function PlayInGameBox({
   // Show prediction status when teams are set and (deadline passed OR winner set)
   const showPredictionStatus = teamsSet && (isLockedByTime || isLockedByWinner) && (!isAdmin || isViewingOtherUser)
 
-  // Debug: Log the state for this game
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`[PlayInGameBox] ${game.gameType}:`, {
-      teamsSet,
-      isLockedByTime,
-      showBigLock,
-      showSmallLock,
-      showPredictionStatus,
-      team1: game.team1,
-      team2: game.team2,
-      startTime: startTime.toISOString(),
-      now: now.toISOString()
-    })
-  }
+  const playInPointsEarned =
+    game.winner && prediction ? calculatePlayInScore(prediction, game) : null
 
   return (
     <div
@@ -429,18 +422,30 @@ function PlayInGameBox({
                           : "Your pick:"}
                       </div>
                       <div className="font-semibold">{prediction.predictedWinner}</div>
+                      {playInPointsEarned !== null && (
+                        <div className="font-normal mt-0.5">
+                          ({formatPointsLabel(playInPointsEarned)})
+                        </div>
+                      )}
                     </>
                   ) : (
                     <>
                       {isViewingOtherUser && viewingUserName 
                         ? `${viewingUserName.split(' ')[0]}'s pick:`
-                        : "Your pick:"} <span className="font-semibold">{prediction.predictedWinner}</span>
+                        : "Your pick:"}{" "}
+                      <span className="font-semibold">{prediction.predictedWinner}</span>
+                      {playInPointsEarned !== null && (
+                        <span className="font-normal">
+                          {" "}
+                          ({formatPointsLabel(playInPointsEarned)})
+                        </span>
+                      )}
                     </>
                   )}
                 </div>
               ) : (
                 <div className="text-muted-foreground italic">
-                  No prediction submitted
+                  No prediction submitted ({formatPointsLabel(0)})
                 </div>
               )}
             </div>
