@@ -1,11 +1,13 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/app/lib/utils/auth"
+import { runApiRoute } from "@/app/lib/logging/runApiRoute"
 import dbConnect from "@/app/lib/db"
 import User from "@/app/lib/models/User"
 
 export const dynamic = "force-dynamic"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  return runApiRoute("GET /api/admin/users", request, async () => {
   try {
     await requireAdmin()
     await dbConnect()
@@ -33,4 +35,5 @@ export async function GET() {
       { status: 500 }
     )
   }
+  })
 }

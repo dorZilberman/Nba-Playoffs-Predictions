@@ -1,10 +1,12 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/app/lib/utils/auth"
+import { runApiRoute } from "@/app/lib/logging/runApiRoute"
 import dbConnect from "@/app/lib/db"
 import PlayInGame from "@/app/lib/models/PlayInGame"
 import Season from "@/app/lib/models/Season"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  return runApiRoute("GET /api/playin", request, async () => {
   try {
     await requireAuth()
     await dbConnect()
@@ -26,4 +28,5 @@ export async function GET() {
       { status: 500 }
     )
   }
+  })
 }

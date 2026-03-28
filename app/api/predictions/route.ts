@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/app/lib/utils/auth"
+import { runApiRoute } from "@/app/lib/logging/runApiRoute"
 import dbConnect from "@/app/lib/db"
 import Prediction from "@/app/lib/models/Prediction"
 import Series from "@/app/lib/models/Series"
@@ -35,6 +36,7 @@ function isPlayInGameFullyLocked(game: any): boolean {
 }
 
 export async function GET(request: NextRequest) {
+  return runApiRoute("GET /api/predictions", request, async () => {
   try {
     const user = await requireAuth()
     await dbConnect()
@@ -92,9 +94,11 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
+  })
 }
 
 export async function POST(request: NextRequest) {
+  return runApiRoute("POST /api/predictions", request, async () => {
   try {
     const user = await requireAuth()
     await dbConnect()
@@ -222,4 +226,5 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+  })
 }

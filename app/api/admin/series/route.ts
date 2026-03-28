@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/app/lib/utils/auth"
+import { runApiRoute } from "@/app/lib/logging/runApiRoute"
 import dbConnect from "@/app/lib/db"
 import Series from "@/app/lib/models/Series"
 import Season from "@/app/lib/models/Season"
@@ -22,6 +23,7 @@ const seriesSchema = z.object({
 })
 
 export async function GET(request: NextRequest) {
+  return runApiRoute("GET /api/admin/series", request, async () => {
   try {
     await requireAdmin()
     await dbConnect()
@@ -47,9 +49,11 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
+  })
 }
 
 export async function POST(request: NextRequest) {
+  return runApiRoute("POST /api/admin/series", request, async () => {
   try {
     await requireAdmin()
     await dbConnect()
@@ -77,4 +81,5 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+  })
 }

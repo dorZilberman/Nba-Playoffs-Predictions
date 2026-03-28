@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/app/lib/utils/auth"
+import { runApiRoute } from "@/app/lib/logging/runApiRoute"
 import dbConnect from "@/app/lib/db"
 import Series from "@/app/lib/models/Series"
 import { z } from "zod"
@@ -25,6 +26,7 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  return runApiRoute("PUT /api/admin/series/[id]", request, async () => {
   try {
     await requireAdmin()
     await dbConnect()
@@ -61,12 +63,14 @@ export async function PUT(
       { status: 500 }
     )
   }
+  })
 }
 
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  return runApiRoute("DELETE /api/admin/series/[id]", request, async () => {
   try {
     await requireAdmin()
     await dbConnect()
@@ -85,4 +89,5 @@ export async function DELETE(
       { status: 500 }
     )
   }
+  })
 }

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
+import { runApiRoute } from "@/app/lib/logging/runApiRoute"
 import dbConnect from "@/app/lib/db"
 import Team from "@/app/lib/models/Team"
 
 export async function GET(request: NextRequest) {
+  return runApiRoute("GET /api/teams", request, async () => {
   try {
     await dbConnect()
 
@@ -28,4 +30,5 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
+  })
 }

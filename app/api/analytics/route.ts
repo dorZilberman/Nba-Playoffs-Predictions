@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/app/lib/utils/auth"
+import { runApiRoute } from "@/app/lib/logging/runApiRoute"
 import dbConnect from "@/app/lib/db"
 import Prediction from "@/app/lib/models/Prediction"
 import Series from "@/app/lib/models/Series"
@@ -112,6 +113,7 @@ export type EarlyFinalsAnalyticsApiResponse =
   | { state: "visible"; blocks: EarlyFinalsAnalyticsBlock[] }
 
 export async function GET(request: NextRequest) {
+  return runApiRoute("GET /api/analytics", request, async () => {
   try {
     await requireAuth()
     await dbConnect()
@@ -551,4 +553,5 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
+  })
 }

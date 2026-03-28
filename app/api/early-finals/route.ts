@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/app/lib/utils/auth"
+import { runApiRoute } from "@/app/lib/logging/runApiRoute"
 import dbConnect from "@/app/lib/db"
 import Season from "@/app/lib/models/Season"
 import Team from "@/app/lib/models/Team"
@@ -18,6 +19,7 @@ const putBodySchema = z.object({
 })
 
 export async function GET(request: NextRequest) {
+  return runApiRoute("GET /api/early-finals", request, async () => {
   try {
     const user = await requireAuth()
     await dbConnect()
@@ -86,9 +88,11 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
+  })
 }
 
 export async function PUT(request: NextRequest) {
+  return runApiRoute("PUT /api/early-finals", request, async () => {
   try {
     const user = await requireAuth()
     await dbConnect()
@@ -168,4 +172,5 @@ export async function PUT(request: NextRequest) {
       { status: 500 }
     )
   }
+  })
 }

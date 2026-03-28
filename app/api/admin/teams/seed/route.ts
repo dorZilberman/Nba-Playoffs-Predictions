@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/app/lib/utils/auth"
+import { runApiRoute } from "@/app/lib/logging/runApiRoute"
 import dbConnect from "@/app/lib/db"
 import { NBA_TEAMS_SEED } from "@/app/lib/nbaTeamsSeedData"
 import Team from "@/app/lib/models/Team"
 
-export async function POST(_request: NextRequest) {
+export async function POST(request: NextRequest) {
+  return runApiRoute("POST /api/admin/teams/seed", request, async () => {
   try {
     await requireAdmin()
     await dbConnect()
@@ -30,4 +32,5 @@ export async function POST(_request: NextRequest) {
       { status: 500 }
     )
   }
+  })
 }

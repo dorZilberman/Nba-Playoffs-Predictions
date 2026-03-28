@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import mongoose from "mongoose"
 import { requireAdmin } from "@/app/lib/utils/auth"
+import { runApiRoute } from "@/app/lib/logging/runApiRoute"
 import dbConnect from "@/app/lib/db"
 import User from "@/app/lib/models/User"
 import { z } from "zod"
@@ -15,6 +16,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  return runApiRoute("PATCH /api/admin/users/[id]", request, async () => {
   try {
     await requireAdmin()
     await dbConnect()
@@ -63,4 +65,5 @@ export async function PATCH(
       { status: 500 }
     )
   }
+  })
 }

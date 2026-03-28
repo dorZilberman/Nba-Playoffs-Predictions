@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/app/lib/utils/auth"
+import { runApiRoute } from "@/app/lib/logging/runApiRoute"
 import dbConnect from "@/app/lib/db"
 import Prediction from "@/app/lib/models/Prediction"
 import Series from "@/app/lib/models/Series"
@@ -11,6 +12,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { userId: string } }
 ) {
+  return runApiRoute("GET /api/predictions/user/[userId]", request, async () => {
   try {
     const user = await requireAuth()
     await dbConnect()
@@ -47,4 +49,5 @@ export async function GET(
       { status: 500 }
     )
   }
+  })
 }

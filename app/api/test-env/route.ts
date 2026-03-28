@@ -1,6 +1,8 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
+import { runApiRoute } from "@/app/lib/logging/runApiRoute"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  return runApiRoute("GET /api/test-env", request, async () => {
   // This is just for debugging - remove in production
   const hasClientId = !!process.env.GOOGLE_CLIENT_ID
   const hasClientSecret = !!process.env.GOOGLE_CLIENT_SECRET
@@ -16,5 +18,6 @@ export async function GET() {
     clientSecretLength: process.env.GOOGLE_CLIENT_SECRET?.length || 0,
     nextAuthUrl: process.env.NEXTAUTH_URL,
     // Don't expose actual secrets, just check if they exist
+  })
   })
 }

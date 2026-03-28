@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/app/lib/utils/auth"
+import { runApiRoute } from "@/app/lib/logging/runApiRoute"
 import dbConnect from "@/app/lib/db"
 import User from "@/app/lib/models/User"
 import Prediction from "@/app/lib/models/Prediction"
@@ -30,6 +31,7 @@ export interface UserStanding {
 }
 
 export async function GET(request: NextRequest) {
+  return runApiRoute("GET /api/standings", request, async () => {
   try {
     await requireAuth()
     await dbConnect()
@@ -154,4 +156,5 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
+  })
 }
