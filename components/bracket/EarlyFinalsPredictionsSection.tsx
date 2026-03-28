@@ -457,8 +457,16 @@ export function EarlyFinalsPredictionsSection({
       data.locked ||
       picksHiddenFromViewer)
 
+  /** Top banner already says "No prediction submitted" when viewing another user, locked, no picks. */
+  const viewingOtherLockedNoPicks =
+    isViewingOtherUser && data.locked && !data.prediction
+
   const showEarlyFinalsPointsRow =
-    roundLocked && !picksHiddenFromViewer && teamsReady && showBracketStrip
+    roundLocked &&
+    !picksHiddenFromViewer &&
+    teamsReady &&
+    showBracketStrip &&
+    !viewingOtherLockedNoPicks
 
   return (
     <div className="space-y-6">
