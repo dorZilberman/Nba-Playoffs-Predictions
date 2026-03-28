@@ -1,9 +1,10 @@
 /**
- * Runs once per Node server process (e.g. after Render cold start or deploy).
- * Visible in Render → your service → Logs.
+ * Runs once per Node when the server bundle loads (e.g. Vercel serverless / Render instance).
+ * Visible in the host dashboard logs (Vercel → Logs, Render → Logs).
  *
  * How to use these logs:
  * - Each `[nba-app:boot]` = new process (deploy, restart, crash recovery, or cold start).
+ *   Payload includes `host: "vercel" | "render" | "other"` plus platform ids when present.
  * - `[nba-app:mem]` ≈ every 5 minutes = RSS / heap snapshot (trend leaks vs plan limits).
  *   `/api/health` also logs memory on each probe; this fires from the app even if cron misses.
  * - `[nba-app:process] SIGTERM` = platform asked the process to stop (typical on deploy).
@@ -35,22 +36,45 @@ function logMemorySnapshot(reason: "startup" | "interval") {
   )
 }
 
+function hostBootPayload() {
+  const vercel = process.env.VERCEL === "1"
+  const render = process.env.RENDER === "true" || process.env.RENDER === "1"
+  const host: "vercel" | "render" | "other" = vercel
+    ? "vercel"
+    : render
+      ? "render"
+      : "other"
+
+  return {
+    host,
+    at: new Date().toISOString(),
+    node: process.version,
+    nodeEnv: process.env.NODE_ENV,
+    ...(vercel
+      ? {
+          vercelEnv: process.env.VERCEL_ENV ?? null,
+          vercelUrl: process.env.VERCEL_URL ?? null,
+          region: process.env.VERCEL_REGION ?? null,
+          deploymentId: process.env.VERCEL_DEPLOYMENT_ID ?? null,
+        }
+      : {}),
+    ...(render
+      ? {
+          renderServiceId: process.env.RENDER_SERVICE_ID ?? null,
+          renderInstanceId: process.env.RENDER_INSTANCE_ID ?? null,
+        }
+      : {}),
+  }
+}
+
 export async function register() {
-  // Runs in Node when the server process starts (e.g. Render cold start / deploy).
   if (typeof process === "undefined" || process.env.NEXT_RUNTIME === "edge") {
     return
   }
 
   console.info(
     "[nba-app:boot] Server process started",
-    JSON.stringify({
-      at: new Date().toISOString(),
-      node: process.version,
-      nodeEnv: process.env.NODE_ENV,
-      render: process.env.RENDER ? "true" : "false",
-      serviceId: process.env.RENDER_SERVICE_ID ?? null,
-      instance: process.env.RENDER_INSTANCE_ID ?? null,
-    })
+    JSON.stringify(hostBootPayload())
   )
 
   logMemorySnapshot("startup")

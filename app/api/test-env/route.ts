@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { runApiRoute } from "@/app/lib/logging/runApiRoute"
+import { requireAdmin } from "@/app/lib/utils/auth"
 
+/** Admin-only env sanity check (never expose to anonymous users). */
 export async function GET(request: NextRequest) {
   return runApiRoute("GET /api/test-env", request, async () => {
-  // This is just for debugging - remove in production
+  await requireAdmin()
+
   const hasClientId = !!process.env.GOOGLE_CLIENT_ID
   const hasClientSecret = !!process.env.GOOGLE_CLIENT_SECRET
   const hasNextAuthSecret = !!process.env.NEXTAUTH_SECRET
