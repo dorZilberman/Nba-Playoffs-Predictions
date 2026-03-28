@@ -8,15 +8,26 @@ const body = {
   service: "nba-playoffs-predictions",
 } as const
 
+function processSnapshot() {
+  const m = process.memoryUsage()
+  return {
+    uptimeSeconds: Math.floor(process.uptime()),
+    rssMb: Math.round((m.rss / 1024 / 1024) * 10) / 10,
+    heapUsedMb: Math.round((m.heapUsed / 1024 / 1024) * 10) / 10,
+  }
+}
+
 function logHealth(method: string, request: Request, status: number) {
   const ua = request.headers.get("user-agent") ?? ""
   const fwd = request.headers.get("x-forwarded-for") ?? ""
+  const snap = processSnapshot()
   console.info(
     "[nba-app:health]",
     JSON.stringify({
       method,
       status,
       at: new Date().toISOString(),
+      ...snap,
       ua: ua.slice(0, 160),
       forwardedFor: fwd.slice(0, 80) || undefined,
     })
@@ -25,7 +36,11 @@ function logHealth(method: string, request: Request, status: number) {
 
 function okResponse() {
   return NextResponse.json(
-    { ...body, timestamp: new Date().toISOString() },
+    {
+      ...body,
+      timestamp: new Date().toISOString(),
+      ...processSnapshot(),
+    },
     {
       status: 200,
       headers: {

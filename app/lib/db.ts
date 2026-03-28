@@ -22,9 +22,30 @@ if (!global.mongoose) {
   global.mongoose = cached
 }
 
+function mongoIsConnected(): boolean {
+  return mongoose.connection.readyState === 1
+}
+
+function clearMongoCache() {
+  cached.conn = null
+  cached.promise = null
+}
+
+/** After Atlas idle timeout or network blips, the driver disconnects; clear cache so we reconnect. */
+if (typeof mongoose.connection.on === "function") {
+  mongoose.connection.on("disconnected", () => {
+    console.warn("[nba-app:db] MongoDB disconnected — cache cleared for next reconnect")
+    clearMongoCache()
+  })
+}
+
 async function dbConnect() {
-  if (cached.conn) {
+  if (cached.conn && mongoIsConnected()) {
     return cached.conn
+  }
+
+  if (cached.conn && !mongoIsConnected()) {
+    clearMongoCache()
   }
 
   if (!cached.promise) {
