@@ -89,6 +89,69 @@ function formatPointsLabel(n: number): string {
   return n === 1 ? "1 point" : `${n} points`
 }
 
+/** First-round bracket order: each slot is a canonical seed pair (home/away order may vary in DB). */
+const FIRST_ROUND_SEED_SLOTS: ReadonlyArray<readonly [number, number]> = [
+  [1, 8],
+  [4, 5],
+  [3, 6],
+  [2, 7],
+]
+
+function seedsMatchFirstRoundSlot(
+  s: Series,
+  slot: readonly [number, number]
+): boolean {
+  const a = s.team1Seed
+  const b = s.team2Seed
+  if (a == null || b == null) return false
+  return (
+    (a === slot[0] && b === slot[1]) || (a === slot[1] && b === slot[0])
+  )
+}
+
+/**
+ * Map DB series to fixed first-round slots by seed pair — not by array order,
+ * so e.g. only creating 4 vs 5 does not appear in the 1 vs 8 cell.
+ */
+function getFirstRoundMatchups(
+  existing: Series[],
+  conference: "west" | "east"
+): Series[] {
+  const used = new Set<string>()
+  const bySlot: (Series | null)[] = FIRST_ROUND_SEED_SLOTS.map((slot) => {
+    const found = existing.find((s) => {
+      if (used.has(String(s._id))) return false
+      return seedsMatchFirstRoundSlot(s, slot)
+    })
+    if (found) {
+      used.add(String(found._id))
+      return found
+    }
+    return null
+  })
+
+  const unplaced = existing.filter((s) => !used.has(String(s._id)))
+  let u = 0
+  return bySlot.map((slotSeries, idx) => {
+    if (slotSeries) return slotSeries
+    if (u < unplaced.length) {
+      return unplaced[u++]
+    }
+    const slot = FIRST_ROUND_SEED_SLOTS[idx]
+    return {
+      _id: `placeholder-${conference}-${idx}`,
+      round: "first",
+      conference,
+      team1: "TBD",
+      team2: "TBD",
+      team1Seed: slot[0],
+      team2Seed: slot[1],
+      startTime: new Date(),
+      status: "upcoming",
+    } as Series
+  })
+}
+
 interface PlayoffBracketVisualProps {
   series: Series[]
   predictions?: IPrediction[]
@@ -192,13 +255,13 @@ export function PlayoffBracketVisual({
     }
   }
 
-  // Organize series by round
-  const firstRoundWest = series
-    .filter((s) => s.round === "first" && s.conference === "west")
-    .slice(0, 4)
-  const firstRoundEast = series
-    .filter((s) => s.round === "first" && s.conference === "east")
-    .slice(0, 4)
+  // Organize series by round (first round: placement by seed pair, not DB order)
+  const firstRoundWest = series.filter(
+    (s) => s.round === "first" && s.conference === "west"
+  )
+  const firstRoundEast = series.filter(
+    (s) => s.round === "first" && s.conference === "east"
+  )
 
   const secondRoundWest = series
     .filter((s) => s.round === "second" && s.conference === "west")
@@ -214,32 +277,6 @@ export function PlayoffBracketVisual({
     (s) => s.round === "conference" && s.conference === "east"
   )
   const finals = series.find((s) => s.round === "finals")
-
-  // Create placeholder matchups
-  const getFirstRoundMatchups = (existing: Series[], conference: "west" | "east") => {
-    const matchups = [...existing]
-    const seeds = [
-      [1, 8],
-      [4, 5],
-      [3, 6],
-      [2, 7],
-    ]
-    while (matchups.length < 4) {
-      const idx = matchups.length
-      matchups.push({
-        _id: `placeholder-${conference}-${idx}`,
-        round: "first",
-        conference,
-        team1: "TBD",
-        team2: "TBD",
-        team1Seed: seeds[idx][0],
-        team2Seed: seeds[idx][1],
-        startTime: new Date(),
-        status: "upcoming",
-      } as Series)
-    }
-    return matchups.slice(0, 4)
-  }
 
   const getSecondRoundMatchups = (existing: Series[], conference: "west" | "east") => {
     const matchups = [...existing]
