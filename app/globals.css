@@ -83,3 +83,32 @@
 .recharts-sector:focus-visible {
   outline: none !important;
 }
+
+/* Launch page: CSS-only fireworks (see LaunchCountdownScreen) */
+@keyframes launch-firework-particle {
+  0% {
+    transform: translate(-50%, -50%) rotate(var(--launch-angle, 0deg)) translateY(0)
+      scale(0.35);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(var(--launch-angle, 0deg))
+      translateY(calc(-1 * min(38vw, 9rem))) scale(0.85);
+    opacity: 0;
+  }
+}
+
+.launch-firework-particle {
+  animation: launch-firework-particle 1.45s ease-out infinite;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .launch-firework-particle {
+    animation: none;
+    opacity: 0.35;
+  }
+}

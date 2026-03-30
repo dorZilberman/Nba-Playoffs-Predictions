@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import type { CSSProperties } from "react"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 
@@ -31,12 +31,6 @@ const NUMBER_CLASS =
 const LABEL_CLASS =
   "text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-xs"
 
-/**
- * Must survive component remount — `router.refresh()` remounts this tree; a `useRef`
- * resets and would call `refresh()` again → navigation flood (crbug.com/1038223) and a blank page.
- */
-let launchExpiredRefreshDone = false
-
 function Colon() {
   return (
     <span
@@ -48,11 +42,61 @@ function Colon() {
   )
 }
 
+const FIREWORK_EMOJIS = ["✨", "🎆", "🎇", "⭐", "💫", "🎉", "✨", "🎆"] as const
+
+const FIREWORK_BURSTS: { x: number; y: number; delay: number }[] = [
+  { x: 10, y: 16, delay: 0 },
+  { x: 52, y: 10, delay: 0.12 },
+  { x: 90, y: 20, delay: 0.24 },
+  { x: 22, y: 42, delay: 0.36 },
+  { x: 78, y: 44, delay: 0.48 },
+  { x: 48, y: 62, delay: 0.6 },
+  { x: 14, y: 72, delay: 0.72 },
+  { x: 86, y: 70, delay: 0.84 },
+]
+
+const RAYS_PER_BURST = 16
+
+function LaunchFireworks() {
+  return (
+    <div
+      className="pointer-events-none fixed inset-0 z-[1] overflow-hidden"
+      aria-hidden
+    >
+      {FIREWORK_BURSTS.map((burst, bi) => (
+        <div
+          key={bi}
+          className="absolute"
+          style={{ left: `${burst.x}%`, top: `${burst.y}%` }}
+        >
+          {Array.from({ length: RAYS_PER_BURST }, (_, j) => {
+            const angle = (360 / RAYS_PER_BURST) * j
+            const emoji = FIREWORK_EMOJIS[j % FIREWORK_EMOJIS.length]
+            return (
+              <span
+                key={j}
+                className="launch-firework-particle absolute left-1/2 top-1/2 text-lg sm:text-2xl md:text-3xl"
+                style={
+                  {
+                    ["--launch-angle"]: `${angle}deg`,
+                    animationDelay: `${burst.delay + j * 0.025}s`,
+                  } as CSSProperties
+                }
+              >
+                {emoji}
+              </span>
+            )
+          })}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function LaunchCountdownScreen({
   initialIso,
   launchAtLabel,
 }: Props) {
-  const router = useRouter()
   const [iso, setIso] = useState<string | null>(initialIso)
   /** null until after mount — avoids server/client clock mismatch hydration warning */
   const [now, setNow] = useState<number | null>(null)
@@ -91,16 +135,6 @@ export function LaunchCountdownScreen({
     }
   }, [])
 
-  useEffect(() => {
-    if (effectiveIso == null || now == null) return
-    const target = new Date(effectiveIso).getTime()
-    if (Number.isNaN(target)) return
-    if (now < target) return
-    if (launchExpiredRefreshDone) return
-    launchExpiredRefreshDone = true
-    router.refresh()
-  }, [effectiveIso, now, router])
-
   if (effectiveIso == null || effectiveIso === "") {
     return null
   }
@@ -119,15 +153,45 @@ export function LaunchCountdownScreen({
   const s = parts ? pad(parts.sec) : "—"
 
   return (
-    <div className="flex min-h-[calc(100vh-5rem)] flex-col items-center justify-center gap-10 px-3 py-8 text-center sm:px-4">
-      <p className="text-sm font-medium uppercase tracking-[0.35em] text-muted-foreground">
-        Opens in
+    <div
+      className={`relative flex min-h-[calc(100vh-5rem)] flex-col items-center justify-center gap-10 px-3 py-8 text-center sm:px-4 ${expired ? "overflow-hidden" : ""}`}
+    >
+      {expired ? <LaunchFireworks /> : null}
+
+      <div className="relative z-10 flex w-full flex-col items-center gap-10">
+      <p
+        className={
+          expired
+            ? "text-2xl sm:text-3xl"
+            : "text-sm font-medium uppercase tracking-[0.35em] text-muted-foreground"
+        }
+      >
+        {expired ? (
+          <span
+            className="inline-block animate-pulse motion-reduce:animate-none"
+            aria-hidden
+          >
+            🎉 🎊 ✨
+          </span>
+        ) : (
+          "Opens in"
+        )}
       </p>
 
       {expired ? (
-        <p className="text-2xl font-semibold text-muted-foreground">
-          We&apos;re live — use the menu to open the bracket.
-        </p>
+        <div className="flex max-w-lg flex-col items-center gap-3 px-2">
+          <p className="text-3xl font-black tracking-tight text-primary sm:text-4xl md:text-5xl">
+            <span aria-hidden>🎆 </span>
+            We&apos;re live!
+            <span aria-hidden> 🎆</span>
+          </p>
+          <p className="text-base font-medium text-muted-foreground sm:text-lg">
+            Refresh the page to open the bracket.{" "}
+            <span className="whitespace-nowrap" aria-hidden>
+              🥳 ✨ 🏀
+            </span>
+          </p>
+        </div>
       ) : (
         <div
           className="mx-auto grid w-full max-w-6xl items-end justify-items-center gap-x-0.5 sm:gap-x-1 md:gap-x-2"
@@ -186,6 +250,7 @@ export function LaunchCountdownScreen({
       <Button variant="outline" size="lg" className="text-base" asChild>
         <Link href="/rules">Rules &amp; scoring</Link>
       </Button>
+      </div>
     </div>
   )
 }
