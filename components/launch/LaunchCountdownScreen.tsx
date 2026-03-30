@@ -47,11 +47,18 @@ export function LaunchCountdownScreen({ initialIso }: Props) {
   /** null until after mount — avoids server/client clock mismatch hydration warning */
   const [now, setNow] = useState<number | null>(null)
 
+  /** Prefer client state; fall back to server prop so we never blank if refetch returns null. */
+  const effectiveIso = iso ?? initialIso
+
   useEffect(() => {
     setNow(Date.now())
     const t = window.setInterval(() => setNow(Date.now()), 1000)
     return () => window.clearInterval(t)
   }, [])
+
+  useEffect(() => {
+    setIso(initialIso)
+  }, [initialIso])
 
   useEffect(() => {
     let cancelled = false
@@ -60,7 +67,11 @@ export function LaunchCountdownScreen({ initialIso }: Props) {
         const res = await fetch("/api/season/site-launch", { cache: "no-store" })
         if (cancelled || !res.ok) return
         const data = (await res.json()) as { siteLaunchTime?: string | null }
-        if (!cancelled) setIso(data.siteLaunchTime ?? null)
+        const next = data.siteLaunchTime
+        /** Never replace a valid launch time with null (avoids blank UI if API/DB is flaky on cold deploy). */
+        if (!cancelled && next != null && String(next).trim() !== "") {
+          setIso(next)
+        }
       } catch {
         /* keep initial */
       }
@@ -71,26 +82,26 @@ export function LaunchCountdownScreen({ initialIso }: Props) {
   }, [])
 
   useEffect(() => {
-    if (iso == null || now == null) return
-    const target = new Date(iso).getTime()
+    if (effectiveIso == null || now == null) return
+    const target = new Date(effectiveIso).getTime()
     if (Number.isNaN(target)) return
     if (now < target) return
     if (refreshedAfterOpenRef.current) return
     refreshedAfterOpenRef.current = true
     router.refresh()
-  }, [iso, now, router])
+  }, [effectiveIso, now, router])
 
-  if (iso == null) {
+  if (effectiveIso == null || effectiveIso === "") {
     return null
   }
 
-  const target = new Date(iso).getTime()
+  const target = new Date(effectiveIso).getTime()
   if (Number.isNaN(target)) return null
 
   const formattedDate = new Intl.DateTimeFormat(undefined, {
     dateStyle: "full",
     timeStyle: "short",
-  }).format(new Date(iso))
+  }).format(new Date(effectiveIso))
 
   const remaining = now == null ? null : target - now
   const expired = remaining != null && remaining <= 0
