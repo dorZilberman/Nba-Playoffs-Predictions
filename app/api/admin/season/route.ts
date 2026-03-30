@@ -12,6 +12,8 @@ const patchSeasonSchema = z.object({
   playoffsStartTime: z.union([z.string().min(1), z.null()]).optional(),
   /** ISO datetime or null — Analytics page/API available at or after this instant */
   playInStartTime: z.union([z.string().min(1), z.null()]).optional(),
+  /** ISO datetime or null — non-admins limited to /launch and /rules until this instant */
+  siteLaunchTime: z.union([z.string().min(1), z.null()]).optional(),
 })
 
 /** Raw MongoDB season document (from Season.collection) */
@@ -22,6 +24,7 @@ type SeasonCollectionDoc = {
   createdAt?: unknown
   playoffsStartTime?: unknown
   playInStartTime?: unknown
+  siteLaunchTime?: unknown
 }
 
 function isoFromRaw(raw: unknown): string | null {
@@ -34,6 +37,7 @@ function isoFromRaw(raw: unknown): string | null {
 function serializeSeason(season: SeasonCollectionDoc) {
   const playoffsStartTime = isoFromRaw(season.playoffsStartTime)
   const playInStartTime = isoFromRaw(season.playInStartTime)
+  const siteLaunchTime = isoFromRaw(season.siteLaunchTime)
 
   const createdRaw = season.createdAt
   let createdAt: string | null = null
@@ -51,6 +55,7 @@ function serializeSeason(season: SeasonCollectionDoc) {
     createdAt,
     playoffsStartTime,
     playInStartTime,
+    siteLaunchTime,
   }
 }
 
@@ -129,6 +134,21 @@ export async function PATCH(request: NextRequest) {
           )
         }
         $set.playInStartTime = d
+      }
+    }
+
+    if (parsed.siteLaunchTime !== undefined) {
+      if (parsed.siteLaunchTime === null) {
+        $unset.siteLaunchTime = ""
+      } else {
+        const d = new Date(parsed.siteLaunchTime)
+        if (Number.isNaN(d.getTime())) {
+          return NextResponse.json(
+            { error: "Invalid siteLaunchTime" },
+            { status: 400 }
+          )
+        }
+        $set.siteLaunchTime = d
       }
     }
 

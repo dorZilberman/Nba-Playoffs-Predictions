@@ -10,6 +10,8 @@ export interface ISeason {
   playoffsStartTime?: Date
   /** Analytics page is hidden until this instant (inclusive). */
   playInStartTime?: Date
+  /** Non-admins use /launch + /rules only until this instant. */
+  siteLaunchTime?: Date
   createdAt: Date
 }
 
@@ -28,6 +30,9 @@ const SeasonSchema = new Schema<ISeason>(
       type: Date,
     },
     playInStartTime: {
+      type: Date,
+    },
+    siteLaunchTime: {
       type: Date,
     },
     createdAt: {

@@ -14,6 +14,12 @@ declare module "next-auth" {
   }
 }
 
+declare module "next-auth/jwt" {
+  interface JWT {
+    isAdmin?: boolean
+  }
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true, // Trust the host in production (Render)
   providers: [
@@ -23,6 +29,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
+    async jwt({ token, user }) {
+      const email = (user?.email ?? token.email) as string | undefined
+      if (!email) return token
+
+      if (user?.email || token.isAdmin === undefined) {
+        await dbConnect()
+        const dbUser = await User.findOne({ email })
+        token.isAdmin = Boolean(dbUser?.isAdmin)
+      }
+      return token
+    },
     async signIn({ user, account, profile }) {
       if (!user.email) {
         return false
@@ -55,6 +72,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (dbUser) {
           session.user.id = dbUser._id.toString()
           session.user.isAdmin = dbUser.isAdmin
+        } else {
+          session.user.isAdmin = Boolean(token.isAdmin)
         }
       }
 

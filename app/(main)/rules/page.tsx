@@ -6,8 +6,10 @@ export default async function RulesPage() {
   await requireAuth()
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <h1 className="text-3xl font-bold">Rules & Scoring</h1>
+    <div className="mx-auto w-full min-w-0 max-w-4xl space-y-6">
+      <h1 className="px-6 text-balance text-3xl font-bold tracking-tight sm:text-4xl">
+        Rules & Scoring
+      </h1>
 
       <Card>
         <CardHeader>

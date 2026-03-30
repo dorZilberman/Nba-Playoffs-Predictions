@@ -2,6 +2,7 @@ import { requireAdmin } from "@/app/lib/utils/auth"
 import { AdminBracketView } from "@/components/admin/AdminBracketView"
 import { AdminUsersPayment } from "@/components/admin/AdminUsersPayment"
 import { EarlyFinalsDeadlineAdmin } from "@/components/admin/EarlyFinalsDeadlineAdmin"
+import { SiteLaunchAdmin } from "@/components/admin/SiteLaunchAdmin"
 import dbConnect from "@/app/lib/db"
 import Season from "@/app/lib/models/Season"
 
@@ -20,6 +21,8 @@ export default async function AdminPage() {
       <h1 className="text-3xl font-bold">Admin Panel</h1>
       
       <EarlyFinalsDeadlineAdmin />
+
+      <SiteLaunchAdmin />
 
       <AdminUsersPayment />
 

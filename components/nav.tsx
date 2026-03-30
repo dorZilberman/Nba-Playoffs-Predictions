@@ -12,9 +12,15 @@ import type { UserStanding } from "@/app/api/standings/route"
 type NavProps = {
   showWhatIf: boolean
   showAnalytics: boolean
+  /** Pre-launch non-admin: only Countdown + Rules */
+  siteLaunchRestricted?: boolean
 }
 
-export function Nav({ showWhatIf, showAnalytics }: NavProps) {
+export function Nav({
+  showWhatIf,
+  showAnalytics,
+  siteLaunchRestricted,
+}: NavProps) {
   const pathname = usePathname()
   const { data: session } = useSession()
   const { theme, setTheme } = useTheme()
@@ -36,7 +42,7 @@ export function Nav({ showWhatIf, showAnalytics }: NavProps) {
 
   useEffect(() => {
     const uid = session?.user?.id
-    if (!uid) {
+    if (!uid || siteLaunchRestricted) {
       setStandingsSummary(null)
       return
     }
@@ -68,21 +74,30 @@ export function Nav({ showWhatIf, showAnalytics }: NavProps) {
     return () => {
       cancelled = true
     }
-  }, [session?.user?.id, pathname])
+  }, [session?.user?.id, pathname, siteLaunchRestricted])
 
   if (!session) {
     return null
   }
 
-  const navItems = [
-    { href: "/bracket", label: "Bracket" },
-    ...(showAnalytics ? [{ href: "/analytics" as const, label: "Analytics" }] : []),
-    { href: "/standings", label: "Standings" },
-    ...(showWhatIf ? [{ href: "/what-if" as const, label: "What if" }] : []),
-    { href: "/rules", label: "Rules" },
-  ]
+  const homeHref = siteLaunchRestricted ? "/launch" : "/bracket"
 
-  if (session.user.isAdmin) {
+  const navItems = siteLaunchRestricted
+    ? [
+        { href: "/launch" as const, label: "Countdown" },
+        { href: "/rules" as const, label: "Rules" },
+      ]
+    : [
+        { href: "/bracket", label: "Bracket" },
+        ...(showAnalytics
+          ? [{ href: "/analytics" as const, label: "Analytics" }]
+          : []),
+        { href: "/standings", label: "Standings" },
+        ...(showWhatIf ? [{ href: "/what-if" as const, label: "What if" }] : []),
+        { href: "/rules", label: "Rules" },
+      ]
+
+  if (!siteLaunchRestricted && session.user.isAdmin) {
     navItems.push({ href: "/admin", label: "Admin" })
   }
 
@@ -109,7 +124,7 @@ export function Nav({ showWhatIf, showAnalytics }: NavProps) {
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <Link href="/bracket" className="text-xl font-bold">
+            <Link href={homeHref} className="text-xl font-bold">
               NBA Playoffs Predictions
             </Link>
             <div className="hidden md:flex gap-4">
