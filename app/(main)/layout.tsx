@@ -2,7 +2,6 @@ import { Nav } from "@/components/nav"
 import { requireAuth } from "@/app/lib/utils/auth"
 import { getSeasonNavGateFlags } from "@/app/lib/season/navFlags"
 import { headers } from "next/headers"
-import { redirect } from "next/navigation"
 import {
   getActiveSeasonSiteLaunch,
   isBeforeSiteLaunch,
@@ -17,13 +16,8 @@ export default async function MainLayout({
   const launchAt = await getActiveSeasonSiteLaunch()
   const preLaunch = isBeforeSiteLaunch(launchAt)
   const h = await headers()
+  /** Styling only; pre-launch route gating lives in middleware (avoids redirect loops if this header is missing). */
   const pathname = h.get("x-next-pathname") ?? ""
-
-  if (preLaunch && !user.isAdmin) {
-    if (pathname !== "/launch" && pathname !== "/rules") {
-      redirect("/launch")
-    }
-  }
 
   const { showWhatIf, showAnalytics } = await getSeasonNavGateFlags()
   const siteLaunchRestricted = preLaunch && !user.isAdmin

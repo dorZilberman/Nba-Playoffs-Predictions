@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import type { CSSProperties } from "react"
-import { useEffect, useState } from "react"
+import { useEffect, useLayoutEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 
 function pad(n: number) {
@@ -21,8 +21,6 @@ function formatParts(ms: number) {
 
 type Props = {
   initialIso: string
-  /** Pre-formatted on the server — must not use client-only Intl here (hydration). */
-  launchAtLabel: string
 }
 
 const NUMBER_CLASS =
@@ -93,13 +91,23 @@ function LaunchFireworks() {
   )
 }
 
-export function LaunchCountdownScreen({
-  initialIso,
-  launchAtLabel,
-}: Props) {
+function formatLaunchLocal(iso: string): string | null {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "full",
+    timeStyle: "short",
+  }).format(d)
+}
+
+export function LaunchCountdownScreen({ initialIso }: Props) {
   const [iso, setIso] = useState<string | null>(initialIso)
   /** null until after mount — avoids server/client clock mismatch hydration warning */
   const [now, setNow] = useState<number | null>(null)
+  /** Formatted in the browser so timezone matches the visitor (server/Vercel is often UTC). */
+  const [launchAtLocalLabel, setLaunchAtLocalLabel] = useState<string | null>(
+    null
+  )
 
   /** Prefer client state; fall back to server prop so we never blank if refetch returns null. */
   const effectiveIso = iso ?? initialIso
@@ -113,6 +121,10 @@ export function LaunchCountdownScreen({
   useEffect(() => {
     setIso(initialIso)
   }, [initialIso])
+
+  useLayoutEffect(() => {
+    setLaunchAtLocalLabel(formatLaunchLocal(effectiveIso))
+  }, [effectiveIso])
 
   useEffect(() => {
     let cancelled = false
@@ -231,7 +243,12 @@ export function LaunchCountdownScreen({
         </div>
       )}
 
-      <p className="max-w-xl text-sm text-muted-foreground">{launchAtLabel}</p>
+      <p
+        className="min-h-[1.25rem] max-w-xl text-sm text-muted-foreground"
+        aria-live="polite"
+      >
+        {launchAtLocalLabel ?? "…"}
+      </p>
 
       <div className="w-full max-w-2xl rounded-2xl border-2 border-primary/50 bg-primary/10 px-6 py-8 text-center shadow-lg ring-1 ring-primary/20 sm:px-8 sm:py-10">
         <p className="text-base font-bold uppercase tracking-widest text-primary sm:text-lg">

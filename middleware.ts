@@ -116,7 +116,9 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
+  /** Include `/` explicitly so the root request always runs middleware on all hosts (some setups only matched nested paths). */
   matcher: [
+    "/",
     "/((?!_next/static|_next/image|favicon.ico|icon.svg|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 }
