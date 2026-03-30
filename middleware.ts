@@ -3,31 +3,44 @@ import type { NextRequest } from "next/server"
 import { getToken } from "next-auth/jwt"
 
 const LAUNCH_TTL_MS = 15_000
-let launchCache: { expires: number; iso: string | null } | null = null
+let launchCache: {
+  expires: number
+  iso: string | null
+  /** false = fetch failed or non-OK — must not treat as "site is open" */
+  fetchOk: boolean
+} | null = null
 
-async function getSiteLaunchIso(request: NextRequest): Promise<string | null> {
+async function getSiteLaunchIso(request: NextRequest): Promise<{
+  iso: string | null
+  fetchOk: boolean
+}> {
   const now = Date.now()
   if (launchCache && now < launchCache.expires) {
-    return launchCache.iso
+    return { iso: launchCache.iso, fetchOk: launchCache.fetchOk }
   }
   try {
     const url = new URL("/api/season/site-launch", request.nextUrl.origin)
     const res = await fetch(url, { cache: "no-store" })
     if (!res.ok) {
-      launchCache = { expires: now + 5_000, iso: null }
-      return null
+      launchCache = { expires: now + 5_000, iso: null, fetchOk: false }
+      return { iso: null, fetchOk: false }
     }
     const data = (await res.json()) as { siteLaunchTime?: string | null }
     const iso = data.siteLaunchTime ?? null
-    launchCache = { expires: now + LAUNCH_TTL_MS, iso }
-    return iso
+    launchCache = { expires: now + LAUNCH_TTL_MS, iso, fetchOk: true }
+    return { iso, fetchOk: true }
   } catch {
-    launchCache = { expires: now + 5_000, iso: null }
-    return null
+    launchCache = { expires: now + 5_000, iso: null, fetchOk: false }
+    return { iso: null, fetchOk: false }
   }
 }
 
-function isPreLaunch(iso: string | null): boolean {
+/**
+ * Pre-launch when launch is in the future, or when we could not load launch
+ * settings (fail closed so /bracket is not exposed if the edge fetch fails).
+ */
+function isPreLaunch(iso: string | null, fetchOk: boolean): boolean {
+  if (!fetchOk) return true
   if (!iso) return false
   const t = new Date(iso).getTime()
   if (Number.isNaN(t)) return false
@@ -84,8 +97,9 @@ export async function middleware(request: NextRequest) {
       : null
   const isAdmin = Boolean(token?.isAdmin)
 
-  const launchIso = await getSiteLaunchIso(request)
-  const preLaunch = isPreLaunch(launchIso)
+  const { iso: launchIso, fetchOk: launchFetchOk } =
+    await getSiteLaunchIso(request)
+  const preLaunch = isPreLaunch(launchIso, launchFetchOk)
 
   if (!preLaunch || isAdmin) {
     return nextWithHeaders()
