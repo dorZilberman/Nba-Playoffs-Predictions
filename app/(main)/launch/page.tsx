@@ -14,5 +14,16 @@ export default async function LaunchPage() {
     redirect("/bracket")
   }
 
-  return <LaunchCountdownScreen initialIso={launchAt!.toISOString()} />
+  /** Format once on the server so client HTML matches (avoids Intl locale/TZ hydration errors). */
+  const launchAtLabel = new Intl.DateTimeFormat("en-US", {
+    dateStyle: "full",
+    timeStyle: "short",
+  }).format(launchAt!)
+
+  return (
+    <LaunchCountdownScreen
+      initialIso={launchAt!.toISOString()}
+      launchAtLabel={launchAtLabel}
+    />
+  )
 }

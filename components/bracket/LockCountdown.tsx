@@ -30,13 +30,15 @@ export function LockCountdown({
   className,
   iconClassName,
 }: LockCountdownProps) {
-  const [now, setNow] = useState(() => Date.now())
+  /** null until after mount — Date.now() in useState breaks SSR/client hydration. */
+  const [now, setNow] = useState<number | null>(null)
 
   useEffect(() => {
     if (hide) return
     const lockMs = new Date(lockAt).getTime()
     if (Number.isNaN(lockMs)) return
 
+    setNow(Date.now())
     const id = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(id)
   }, [hide, lockAt])
@@ -45,6 +47,8 @@ export function LockCountdown({
 
   const lockMs = new Date(lockAt).getTime()
   if (Number.isNaN(lockMs)) return null
+
+  if (now == null) return null
 
   const remaining = lockMs - now
   if (remaining <= 0 || remaining > TWENTY_FOUR_HOURS_MS) return null

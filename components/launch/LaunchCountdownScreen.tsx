@@ -21,6 +21,8 @@ function formatParts(ms: number) {
 
 type Props = {
   initialIso: string
+  /** Pre-formatted on the server — must not use client-only Intl here (hydration). */
+  launchAtLabel: string
 }
 
 const NUMBER_CLASS =
@@ -40,7 +42,10 @@ function Colon() {
   )
 }
 
-export function LaunchCountdownScreen({ initialIso }: Props) {
+export function LaunchCountdownScreen({
+  initialIso,
+  launchAtLabel,
+}: Props) {
   const router = useRouter()
   const refreshedAfterOpenRef = useRef(false)
   const [iso, setIso] = useState<string | null>(initialIso)
@@ -97,11 +102,6 @@ export function LaunchCountdownScreen({ initialIso }: Props) {
 
   const target = new Date(effectiveIso).getTime()
   if (Number.isNaN(target)) return null
-
-  const formattedDate = new Intl.DateTimeFormat(undefined, {
-    dateStyle: "full",
-    timeStyle: "short",
-  }).format(new Date(effectiveIso))
 
   const remaining = now == null ? null : target - now
   const expired = remaining != null && remaining <= 0
@@ -162,7 +162,7 @@ export function LaunchCountdownScreen({ initialIso }: Props) {
         </div>
       )}
 
-      <p className="max-w-xl text-sm text-muted-foreground">{formattedDate}</p>
+      <p className="max-w-xl text-sm text-muted-foreground">{launchAtLabel}</p>
 
       <div className="w-full max-w-2xl rounded-2xl border-2 border-primary/50 bg-primary/10 px-6 py-8 text-center shadow-lg ring-1 ring-primary/20 sm:px-8 sm:py-10">
         <p className="text-base font-bold uppercase tracking-widest text-primary sm:text-lg">
