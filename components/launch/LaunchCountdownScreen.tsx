@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 
 function pad(n: number) {
@@ -31,6 +31,12 @@ const NUMBER_CLASS =
 const LABEL_CLASS =
   "text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-xs"
 
+/**
+ * Must survive component remount — `router.refresh()` remounts this tree; a `useRef`
+ * resets and would call `refresh()` again → navigation flood (crbug.com/1038223) and a blank page.
+ */
+let launchExpiredRefreshDone = false
+
 function Colon() {
   return (
     <span
@@ -47,7 +53,6 @@ export function LaunchCountdownScreen({
   launchAtLabel,
 }: Props) {
   const router = useRouter()
-  const refreshedAfterOpenRef = useRef(false)
   const [iso, setIso] = useState<string | null>(initialIso)
   /** null until after mount — avoids server/client clock mismatch hydration warning */
   const [now, setNow] = useState<number | null>(null)
@@ -91,8 +96,8 @@ export function LaunchCountdownScreen({
     const target = new Date(effectiveIso).getTime()
     if (Number.isNaN(target)) return
     if (now < target) return
-    if (refreshedAfterOpenRef.current) return
-    refreshedAfterOpenRef.current = true
+    if (launchExpiredRefreshDone) return
+    launchExpiredRefreshDone = true
     router.refresh()
   }, [effectiveIso, now, router])
 
