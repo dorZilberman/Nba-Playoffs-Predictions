@@ -153,6 +153,20 @@ export function LaunchCountdownScreen({ initialIso }: Props) {
 
       <p className="max-w-xl text-sm text-muted-foreground">{formattedDate}</p>
 
+      <div className="w-full max-w-2xl rounded-2xl border-2 border-primary/50 bg-primary/10 px-6 py-8 text-center shadow-lg ring-1 ring-primary/20 sm:px-8 sm:py-10">
+        <p className="text-base font-bold uppercase tracking-widest text-primary sm:text-lg">
+          Paybox link
+        </p>
+        <a
+          href="https://links.payboxapp.com/jc7XmjzsV1b"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 block break-all text-lg font-semibold leading-snug text-foreground underline decoration-2 underline-offset-[6px] transition-colors hover:text-primary sm:mt-5 sm:text-xl md:text-2xl"
+        >
+          https://links.payboxapp.com/jc7XmjzsV1b
+        </a>
+      </div>
+
       <Button variant="outline" size="lg" className="text-base" asChild>
         <Link href="/rules">Rules &amp; scoring</Link>
       </Button>
