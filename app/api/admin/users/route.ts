@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
     const users = await User.find({})
       .select("_id email name isAdmin hasPayed createdAt")
-      .sort({ name: 1 })
+      .sort({ createdAt: -1 })
       .lean()
 
     const payload = users.map((u) => ({

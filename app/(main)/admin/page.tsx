@@ -19,12 +19,20 @@ export default async function AdminPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Admin Panel</h1>
-      
+
       <EarlyFinalsDeadlineAdmin />
 
       <SiteLaunchAdmin />
 
-      <AdminUsersPayment />
+      <section className="space-y-3" aria-labelledby="admin-users-heading">
+        <h2
+          id="admin-users-heading"
+          className="text-2xl font-semibold scroll-mt-4"
+        >
+          Users
+        </h2>
+        <AdminUsersPayment />
+      </section>
 
       {/* Bracket View */}
       <div className="space-y-4">
