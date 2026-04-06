@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/app/lib/utils/auth"
+import {
+  USER_NOT_IN_DB_CODE,
+  USER_NOT_IN_DB_MESSAGE,
+  userExistsInDb,
+} from "@/app/lib/utils/userDbGate"
 import { runApiRoute } from "@/app/lib/logging/runApiRoute"
 import dbConnect from "@/app/lib/db"
 import Season from "@/app/lib/models/Season"
@@ -23,6 +28,13 @@ export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth()
     await dbConnect()
+
+    if (!(await userExistsInDb(user.id))) {
+      return NextResponse.json(
+        { error: USER_NOT_IN_DB_MESSAGE, code: USER_NOT_IN_DB_CODE },
+        { status: 403 }
+      )
+    }
 
     const rawSeason = await Season.collection.findOne({ isActive: true })
     if (!rawSeason) {
@@ -96,6 +108,13 @@ export async function PUT(request: NextRequest) {
   try {
     const user = await requireAuth()
     await dbConnect()
+
+    if (!(await userExistsInDb(user.id))) {
+      return NextResponse.json(
+        { error: USER_NOT_IN_DB_MESSAGE, code: USER_NOT_IN_DB_CODE },
+        { status: 403 }
+      )
+    }
 
     const rawSeason = await Season.collection.findOne({ isActive: true })
     if (!rawSeason) {

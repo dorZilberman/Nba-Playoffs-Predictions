@@ -25,6 +25,10 @@ import {
   calculateEarlyFinalsScore,
   resolveFinalsOutcomesFromSeries,
 } from "@/app/lib/scoring/earlyFinals"
+import {
+  USER_NOT_IN_DB_CODE,
+  USER_NOT_IN_DB_MESSAGE,
+} from "@/app/lib/userNotInDbConstants"
 
 function formatPointsLabel(n: number): string {
   return n === 1 ? "1 point" : `${n} points`
@@ -323,6 +327,21 @@ export function EarlyFinalsPredictionsSection({
           ? `?userId=${encodeURIComponent(viewingUserId)}`
           : ""
       const res = await fetch(`/api/early-finals${q}`)
+      if (res.status === 403) {
+        const body = (await res.json().catch(() => ({}))) as {
+          error?: string
+          code?: string
+        }
+        if (body.code === USER_NOT_IN_DB_CODE) {
+          setError(
+            typeof body.error === "string" ? body.error : USER_NOT_IN_DB_MESSAGE
+          )
+        } else {
+          setError("Could not load early finals data.")
+        }
+        setData(null)
+        return
+      }
       if (!res.ok) {
         throw new Error("Failed to load")
       }
@@ -406,6 +425,17 @@ export function EarlyFinalsPredictionsSection({
     } finally {
       setSaving(false)
     }
+  }
+
+  if (!loading && error != null && data == null) {
+    return (
+      <div
+        className="rounded-lg border border-destructive/60 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        role="alert"
+      >
+        {error}
+      </div>
+    )
   }
 
   if (loading || !data) {

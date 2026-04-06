@@ -9,6 +9,10 @@ import { useState, useEffect, useCallback } from "react"
 import type { ISeries } from "@/app/lib/models/Series"
 import type { IPlayInGame } from "@/app/lib/models/PlayInGame"
 import type { IPrediction } from "@/app/lib/models/Prediction"
+import {
+  USER_NOT_IN_DB_CODE,
+  USER_NOT_IN_DB_MESSAGE,
+} from "@/app/lib/userNotInDbConstants"
 
 interface NBABracketViewProps {
   viewingUserId?: string
@@ -27,6 +31,10 @@ export function NBABracketView({
   const [selectedPlayIn, setSelectedPlayIn] = useState<IPlayInGame | null>(null)
   const [isPlayInModalOpen, setIsPlayInModalOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  /** Set when GET /api/predictions returns 403 (session user missing from DB). */
+  const [accountMissingMessage, setAccountMissingMessage] = useState<
+    string | null
+  >(null)
 
   const fetchData = useCallback(async () => {
     try {
@@ -56,8 +64,24 @@ export function NBABracketView({
       }
 
       if (predictionsRes.ok) {
+        setAccountMissingMessage(null)
         const data = await predictionsRes.json()
         setPredictions(Array.isArray(data) ? data : [])
+      } else if (predictionsRes.status === 403) {
+        const body = (await predictionsRes.json().catch(() => ({}))) as {
+          error?: string
+          code?: string
+        }
+        if (body.code === USER_NOT_IN_DB_CODE) {
+          setAccountMissingMessage(
+            typeof body.error === "string" ? body.error : USER_NOT_IN_DB_MESSAGE
+          )
+        } else {
+          setAccountMissingMessage(null)
+        }
+        setPredictions([])
+      } else {
+        setAccountMissingMessage(null)
       }
     } catch (error) {
       console.error("Error fetching data:", error)
@@ -167,6 +191,14 @@ export function NBABracketView({
 
   return (
     <div className="w-full space-y-6">
+      {accountMissingMessage ? (
+        <div
+          className="rounded-lg border border-destructive/60 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          role="alert"
+        >
+          {accountMissingMessage}
+        </div>
+      ) : null}
       <CollapsibleSection title="Early Finals Predictions">
         <EarlyFinalsPredictionsSection
           series={series}

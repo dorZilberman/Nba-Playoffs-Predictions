@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/app/lib/utils/auth"
+import {
+  USER_NOT_IN_DB_CODE,
+  USER_NOT_IN_DB_MESSAGE,
+  userExistsInDb,
+} from "@/app/lib/utils/userDbGate"
 import { runApiRoute } from "@/app/lib/logging/runApiRoute"
 import dbConnect from "@/app/lib/db"
 import Prediction from "@/app/lib/models/Prediction"
@@ -40,6 +45,13 @@ export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth()
     await dbConnect()
+
+    if (!(await userExistsInDb(user.id))) {
+      return NextResponse.json(
+        { error: USER_NOT_IN_DB_MESSAGE, code: USER_NOT_IN_DB_CODE },
+        { status: 403 }
+      )
+    }
 
     const searchParams = request.nextUrl.searchParams
     const userIdParam = searchParams.get("userId") || user.id
@@ -102,6 +114,13 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth()
     await dbConnect()
+
+    if (!(await userExistsInDb(user.id))) {
+      return NextResponse.json(
+        { error: USER_NOT_IN_DB_MESSAGE, code: USER_NOT_IN_DB_CODE },
+        { status: 403 }
+      )
+    }
 
     const body = await request.json()
     const validated = predictionSchema.parse(body)
