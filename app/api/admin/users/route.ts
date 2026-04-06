@@ -26,9 +26,8 @@ export async function GET(request: NextRequest) {
       await dbConnect()
 
       const season = await Season.findOne({ isActive: true }).lean()
-      const seasonId = season?._id
-        ? (season._id as mongoose.Types.ObjectId).toString()
-        : null
+      const seasonId =
+        season?._id != null ? String(season._id) : null
       const seasonRaw = season
         ? (season as unknown as Record<string, unknown>)
         : null
@@ -65,7 +64,9 @@ export async function GET(request: NextRequest) {
         .sort({ createdAt: -1 })
         .lean()
 
-      const userIds = users.map((u) => u._id as mongoose.Types.ObjectId)
+      const userIds = users.map(
+        (u) => new mongoose.Types.ObjectId(String(u._id))
+      )
 
       const [preds, earlyDocs] = await Promise.all([
         userIds.length
@@ -83,7 +84,7 @@ export async function GET(request: NextRequest) {
       ])
 
       const earlyFinalsUserIds = new Set(
-        earlyDocs.map((d) => (d.userId as mongoose.Types.ObjectId).toString())
+        earlyDocs.map((d) => String(d.userId))
       )
 
       const byUser = new Map<
@@ -91,13 +92,13 @@ export async function GET(request: NextRequest) {
         { series: Set<string>; playIn: Set<string> }
       >()
       for (const u of users) {
-        byUser.set((u._id as mongoose.Types.ObjectId).toString(), {
+        byUser.set(String(u._id), {
           series: new Set(),
           playIn: new Set(),
         })
       }
       for (const p of preds) {
-        const uid = (p.userId as mongoose.Types.ObjectId).toString()
+        const uid = String(p.userId)
         const bucket = byUser.get(uid)
         if (!bucket) continue
         if (p.seriesId) bucket.series.add(p.seriesId.toString())
@@ -105,7 +106,7 @@ export async function GET(request: NextRequest) {
       }
 
       const payload = users.map((u) => {
-        const id = (u._id as mongoose.Types.ObjectId).toString()
+        const id = String(u._id)
         const bucket = byUser.get(id)!
         const roundCompletion: RoundCompletion = completionForUser({
           earlyFinalsOpen,
