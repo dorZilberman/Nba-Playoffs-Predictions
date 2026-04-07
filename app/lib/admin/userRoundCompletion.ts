@@ -15,7 +15,8 @@ export function teamsSetForMatchup(team1: string, team2: string): boolean {
   )
 }
 
-function isOpenForPrediction(
+/** Both teams known, no winner yet, before start time — same rule as bracket open slots. */
+export function isPredictionSlotOpen(
   team1: string,
   team2: string,
   winner: string | undefined,
@@ -91,7 +92,7 @@ export function buildOpenPredictionIds(args: {
 
   for (const g of playInGames) {
     if (
-      isOpenForPrediction(
+      isPredictionSlotOpen(
         g.team1,
         g.team2,
         g.winner,
@@ -105,7 +106,7 @@ export function buildOpenPredictionIds(args: {
 
   for (const s of series) {
     if (
-      !isOpenForPrediction(
+      !isPredictionSlotOpen(
         s.team1,
         s.team2,
         s.winner,

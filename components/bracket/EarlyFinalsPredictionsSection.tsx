@@ -56,6 +56,8 @@ interface EarlyFinalsPredictionsSectionProps {
   viewingUserId?: string
   isViewingOtherUser?: boolean
   viewingUserName?: string
+  /** Called after a successful save (e.g. refresh To Do on bracket). */
+  onPredictionSaved?: () => void
 }
 
 /** Same footprint as MatchupBox in PlayoffBracketVisual */
@@ -307,6 +309,7 @@ export function EarlyFinalsPredictionsSection({
   viewingUserId,
   isViewingOtherUser = false,
   viewingUserName = "User",
+  onPredictionSaved,
 }: EarlyFinalsPredictionsSectionProps) {
   const [data, setData] = useState<EarlyFinalsApiResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -420,6 +423,7 @@ export function EarlyFinalsPredictionsSection({
         throw new Error(body.error || "Save failed")
       }
       await fetchData()
+      onPredictionSaved?.()
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed")
     } finally {

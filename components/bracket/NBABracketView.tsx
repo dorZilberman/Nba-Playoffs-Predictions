@@ -3,6 +3,7 @@
 import { PlayoffBracket } from "./PlayoffBracket"
 import { PlayInBracketVisual } from "./PlayInBracketVisual"
 import { EarlyFinalsPredictionsSection } from "./EarlyFinalsPredictionsSection"
+import { PredictionTodoSection } from "./PredictionTodoSection"
 import { CollapsibleSection } from "@/components/ui/collapsible-section"
 import { PlayInPredictionModal } from "./PlayInPredictionModal"
 import { useState, useEffect, useCallback } from "react"
@@ -35,6 +36,7 @@ export function NBABracketView({
   const [accountMissingMessage, setAccountMissingMessage] = useState<
     string | null
   >(null)
+  const [todoEarlyFinalsRefreshKey, setTodoEarlyFinalsRefreshKey] = useState(0)
 
   const fetchData = useCallback(async () => {
     try {
@@ -89,6 +91,10 @@ export function NBABracketView({
       setLoading(false)
     }
   }, [viewingUserId, isViewingOtherUser])
+
+  const bumpTodoEarlyFinalsRefresh = useCallback(() => {
+    setTodoEarlyFinalsRefreshKey((k) => k + 1)
+  }, [])
 
   useEffect(() => {
     fetchData()
@@ -199,12 +205,25 @@ export function NBABracketView({
           {accountMissingMessage}
         </div>
       ) : null}
+      <PredictionTodoSection
+        series={series}
+        playInGames={playInGames}
+        predictions={predictions}
+        loading={loading}
+        enabled={
+          !isViewingOtherUser && accountMissingMessage == null
+        }
+        earlyFinalsRefreshKey={todoEarlyFinalsRefreshKey}
+      />
       <CollapsibleSection title="Early Finals Predictions">
         <EarlyFinalsPredictionsSection
           series={series}
           viewingUserId={viewingUserId}
           isViewingOtherUser={isViewingOtherUser}
           viewingUserName={viewingUserName}
+          onPredictionSaved={
+            !isViewingOtherUser ? bumpTodoEarlyFinalsRefresh : undefined
+          }
         />
       </CollapsibleSection>
 
