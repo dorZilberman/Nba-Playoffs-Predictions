@@ -89,6 +89,7 @@ export function Nav({
       ]
     : [
         { href: "/bracket", label: "Bracket" },
+        { href: "/shaming", label: "Shaming" },
         ...(showAnalytics
           ? [{ href: "/analytics" as const, label: "Analytics" }]
           : []),
