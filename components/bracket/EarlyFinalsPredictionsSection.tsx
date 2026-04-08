@@ -56,7 +56,7 @@ interface EarlyFinalsPredictionsSectionProps {
   viewingUserId?: string
   isViewingOtherUser?: boolean
   viewingUserName?: string
-  /** Called after a successful save (e.g. refresh To Do on bracket). */
+  /** Called after a successful save (e.g. refresh Open Predictions on bracket). */
   onPredictionSaved?: () => void
 }
 

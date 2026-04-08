@@ -6,7 +6,8 @@ import { EarlyFinalsPredictionsSection } from "./EarlyFinalsPredictionsSection"
 import { PredictionTodoSection } from "./PredictionTodoSection"
 import { CollapsibleSection } from "@/components/ui/collapsible-section"
 import { PlayInPredictionModal } from "./PlayInPredictionModal"
-import { useState, useEffect, useCallback } from "react"
+import { useSession } from "next-auth/react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import type { ISeries } from "@/app/lib/models/Series"
 import type { IPlayInGame } from "@/app/lib/models/PlayInGame"
 import type { IPrediction } from "@/app/lib/models/Prediction"
@@ -14,6 +15,14 @@ import {
   USER_NOT_IN_DB_CODE,
   USER_NOT_IN_DB_MESSAGE,
 } from "@/app/lib/userNotInDbConstants"
+import { isPredictionSlotOpen } from "@/app/lib/admin/userRoundCompletion"
+import type { UserStanding } from "@/app/api/standings/route"
+
+function formatBracketSectionPoints(n: number): string {
+  const v = Number.isFinite(n) ? n : 0
+  const sign = v >= 0 ? "+" : ""
+  return `${sign}${v} points`
+}
 
 interface NBABracketViewProps {
   viewingUserId?: string
@@ -26,6 +35,7 @@ export function NBABracketView({
   isViewingOtherUser = false,
   viewingUserName = "User",
 }: NBABracketViewProps = {}) {
+  const { data: session } = useSession()
   const [series, setSeries] = useState<ISeries[]>([])
   const [playInGames, setPlayInGames] = useState<IPlayInGame[]>([])
   const [predictions, setPredictions] = useState<IPrediction[]>([])
@@ -37,6 +47,14 @@ export function NBABracketView({
     string | null
   >(null)
   const [todoEarlyFinalsRefreshKey, setTodoEarlyFinalsRefreshKey] = useState(0)
+  /** `null` until GET /api/early-finals resolves — treat as expanded like before. */
+  const [earlyFinalsWindowOpen, setEarlyFinalsWindowOpen] = useState<
+    boolean | null
+  >(null)
+  /** Scores for the user whose bracket is shown (you or selected user). */
+  const [viewedStanding, setViewedStanding] = useState<UserStanding | null>(
+    null
+  )
 
   const fetchData = useCallback(async () => {
     try {
@@ -49,11 +67,15 @@ export function NBABracketView({
         }
       }
 
-      const [seriesRes, playInRes, predictionsRes] = await Promise.all([
-        fetch("/api/series"),
-        fetch("/api/playin"),
-        fetch(predictionsUrl),
-      ])
+      const targetUserId = viewingUserId ?? session?.user?.id
+
+      const [seriesRes, playInRes, predictionsRes, standingsRes] =
+        await Promise.all([
+          fetch("/api/series"),
+          fetch("/api/playin"),
+          fetch(predictionsUrl),
+          fetch("/api/standings"),
+        ])
 
       if (seriesRes.ok) {
         const data = await seriesRes.json()
@@ -85,20 +107,105 @@ export function NBABracketView({
       } else {
         setAccountMissingMessage(null)
       }
+
+      if (standingsRes.ok && targetUserId) {
+        const standingsData = (await standingsRes.json()) as UserStanding[]
+        const row = Array.isArray(standingsData)
+          ? standingsData.find((s) => s.userId === targetUserId) ?? null
+          : null
+        setViewedStanding(row)
+      } else {
+        setViewedStanding(null)
+      }
     } catch (error) {
       console.error("Error fetching data:", error)
+      setViewedStanding(null)
     } finally {
       setLoading(false)
     }
-  }, [viewingUserId, isViewingOtherUser])
+  }, [viewingUserId, isViewingOtherUser, session?.user?.id])
 
   const bumpTodoEarlyFinalsRefresh = useCallback(() => {
     setTodoEarlyFinalsRefreshKey((k) => k + 1)
   }, [])
 
+  const onEarlyFinalsSaved = useCallback(() => {
+    bumpTodoEarlyFinalsRefresh()
+    void fetchData()
+  }, [bumpTodoEarlyFinalsRefresh, fetchData])
+
+  const playoffsPointsTotal = useMemo(() => {
+    if (!viewedStanding) return 0
+    return (
+      viewedStanding.firstRoundScore +
+      viewedStanding.secondRoundScore +
+      viewedStanding.conferenceFinalsScore +
+      viewedStanding.finalsScore
+    )
+  }, [viewedStanding])
+
+  const sectionPointsHeader = useCallback(
+    (points: number) =>
+      loading ? (
+        <span className="text-sm text-muted-foreground">…</span>
+      ) : (
+        <span className="text-sm font-medium tabular-nums text-muted-foreground">
+          {formatBracketSectionPoints(points)}
+        </span>
+      ),
+    [loading]
+  )
+
   useEffect(() => {
     fetchData()
   }, [fetchData])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch("/api/early-finals", { cache: "no-store" })
+        if (!res.ok || cancelled) return
+        const d = (await res.json()) as {
+          seasonId: string | null
+          locked: boolean
+        }
+        if (cancelled) return
+        setEarlyFinalsWindowOpen(!!(d.seasonId && !d.locked))
+      } catch {
+        if (!cancelled) setEarlyFinalsWindowOpen(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [todoEarlyFinalsRefreshKey])
+
+  const playInSectionHasOpenSlot = useMemo(() => {
+    const now = new Date()
+    return playInGames.some((g) =>
+      isPredictionSlotOpen(
+        g.team1,
+        g.team2,
+        g.winner,
+        new Date(g.startTime),
+        now
+      )
+    )
+  }, [playInGames])
+
+  const playoffsSectionHasOpenSlot = useMemo(() => {
+    const now = new Date()
+    return series.some((s) =>
+      isPredictionSlotOpen(
+        s.team1,
+        s.team2,
+        s.winner,
+        new Date(s.startTime),
+        now
+      )
+    )
+  }, [series])
 
   const handlePredictionSave = async (prediction: {
     seriesId: string
@@ -215,19 +322,29 @@ export function NBABracketView({
         }
         earlyFinalsRefreshKey={todoEarlyFinalsRefreshKey}
       />
-      <CollapsibleSection title="Early Finals Predictions">
+      <CollapsibleSection
+        key={`early-finals-${String(earlyFinalsWindowOpen)}`}
+        title="Early Finals Predictions"
+        headerRight={sectionPointsHeader(viewedStanding?.earlyFinalsScore ?? 0)}
+        defaultOpen={earlyFinalsWindowOpen !== false}
+      >
         <EarlyFinalsPredictionsSection
           series={series}
           viewingUserId={viewingUserId}
           isViewingOtherUser={isViewingOtherUser}
           viewingUserName={viewingUserName}
           onPredictionSaved={
-            !isViewingOtherUser ? bumpTodoEarlyFinalsRefresh : undefined
+            !isViewingOtherUser ? onEarlyFinalsSaved : undefined
           }
         />
       </CollapsibleSection>
 
-      <CollapsibleSection title="Play-In">
+      <CollapsibleSection
+        key={`play-in-${playInSectionHasOpenSlot}`}
+        title="Play-In"
+        headerRight={sectionPointsHeader(viewedStanding?.playInScore ?? 0)}
+        defaultOpen={playInSectionHasOpenSlot}
+      >
         <PlayInBracketVisual
           embedded
           games={playInGames}
@@ -239,7 +356,12 @@ export function NBABracketView({
         />
       </CollapsibleSection>
 
-      <CollapsibleSection title="Playoffs">
+      <CollapsibleSection
+        key={`playoffs-${playoffsSectionHasOpenSlot}`}
+        title="Playoffs"
+        headerRight={sectionPointsHeader(playoffsPointsTotal)}
+        defaultOpen={playoffsSectionHasOpenSlot}
+      >
         <PlayoffBracket
           embedded
           series={series}

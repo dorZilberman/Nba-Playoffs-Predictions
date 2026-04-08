@@ -9,7 +9,6 @@ import type { ISeries } from "@/app/lib/models/Series"
 import type { IPlayInGame } from "@/app/lib/models/PlayInGame"
 import type { IPrediction } from "@/app/lib/models/Prediction"
 import type { RoundType } from "@/app/lib/models/Series"
-import { cn } from "@/app/lib/utils/cn"
 
 const ROUND_LABEL: Record<RoundType, string> = {
   first: "First round",
@@ -227,13 +226,20 @@ export function PredictionTodoSection({
   }, [earlyData, playInGames, predictions, series, now])
 
   const loading = parentLoading || earlyLoading
+  const hasIncompleteTodo = rows.some((r) => !r.done)
+  /** Open while loading; otherwise only if something still needs a pick. */
+  const todoDefaultOpen = loading || hasIncompleteTodo
 
   if (!enabled) {
     return null
   }
 
   return (
-    <CollapsibleSection title="To Do" defaultOpen>
+    <CollapsibleSection
+      key={`todo-${String(loading)}-${String(hasIncompleteTodo)}`}
+      title="Open Predictions"
+      defaultOpen={todoDefaultOpen}
+    >
       {loading ? (
         <p className="px-4 pb-4 text-sm text-muted-foreground md:px-6">
           Loading…
@@ -277,14 +283,14 @@ export function PredictionTodoSection({
                     />
                   ) : null}
                   {row.detail ? (
-                    <p
-                      className={cn(
-                        "text-sm leading-snug",
-                        row.done ? "text-foreground" : "text-muted-foreground"
-                      )}
-                    >
-                      {row.detail}
-                    </p>
+                    <div className="rounded border-2 border-secondary bg-muted/40 p-2 dark:bg-muted/25">
+                      <div className="text-xs font-semibold text-foreground">
+                        Your Prediction
+                      </div>
+                      <p className="mt-1 text-sm leading-snug text-foreground">
+                        {row.detail}
+                      </p>
+                    </div>
                   ) : null}
                 </div>
               </li>
