@@ -151,14 +151,15 @@ export function PlayInPredictionModal({
             </div>
           </div>
 
-          {/* Current Prediction Display */}
+          {/* Current Prediction Display — match PredictionModal styling */}
           {prediction && (
             <div className="rounded border-2 border-secondary p-3">
-              <div className="text-xs font-semibold text-secondary mb-1">
+              <div className="text-sm font-semibold text-foreground mb-2">
                 Your Current Prediction
               </div>
-              <div className="text-sm font-medium flex items-center gap-2">
-                Winner: <TeamDisplay teamName={prediction.predictedWinner} size="sm" />
+              <div className="text-sm flex items-center gap-2 text-foreground">
+                <span className="shrink-0 font-semibold">Winner:</span>
+                <TeamDisplay teamName={prediction.predictedWinner} size="sm" />
               </div>
             </div>
           )}
