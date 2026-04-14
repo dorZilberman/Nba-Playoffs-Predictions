@@ -12,6 +12,8 @@ type CollapsibleSectionProps = {
   children: ReactNode
   className?: string
   contentClassName?: string
+  /** Root element id (e.g. for scroll / programmatic expand). */
+  id?: string
 }
 
 export function CollapsibleSection({
@@ -21,11 +23,13 @@ export function CollapsibleSection({
   children,
   className,
   contentClassName,
+  id,
 }: CollapsibleSectionProps) {
   const [open, setOpen] = useState(defaultOpen)
 
   return (
     <div
+      id={id}
       className={cn(
         "bg-background border rounded-lg overflow-hidden",
         className

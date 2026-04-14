@@ -53,6 +53,13 @@ function formatPlayInGameType(gameType: string): string {
     .join(" ")
 }
 
+/** Scroll target: conference sub-header inside Play-In (see PlayInBracketVisual). */
+function playInConferenceScrollTargetId(gameType: string): string {
+  if (gameType.startsWith("east-")) return "playin-bracket-east-header"
+  if (gameType.startsWith("west-")) return "playin-bracket-west-header"
+  return "bracket-section-play-in"
+}
+
 function formatSeriesPrediction(p: IPrediction): string {
   const w = p.predictedWinner
   const sc = p.predictedScore
@@ -65,11 +72,24 @@ function formatSeriesPrediction(p: IPrediction): string {
 type TodoRow = {
   key: string
   kind: "earlyFinals" | "playIn" | "series"
+  /** DOM id to scroll into view (section or conference header). */
+  scrollTargetId: string
+  /** Open Play-In modal for this game after scrolling. */
+  openPlayInGameId?: string
+  /** Open Playoffs prediction modal for this series after scrolling. */
+  openSeriesId?: string
   title: string
   subtitle?: string
   lockAt: string | null
   done: boolean
   detail: string | null
+}
+
+export type OpenPredictionNavigatePayload = {
+  scrollTargetId: string
+  kind: TodoRow["kind"]
+  openPlayInGameId?: string
+  openSeriesId?: string
 }
 
 /** Classic todo list marker: empty ring, or filled circle with check. */
@@ -97,6 +117,8 @@ export interface PredictionTodoSectionProps {
   enabled: boolean
   /** Bump after early-finals save so this section refetches `/api/early-finals`. */
   earlyFinalsRefreshKey: number
+  /** Scroll to the matching bracket control when a row is activated. */
+  onRowNavigate?: (payload: OpenPredictionNavigatePayload) => void
 }
 
 export function PredictionTodoSection({
@@ -106,6 +128,7 @@ export function PredictionTodoSection({
   loading: parentLoading,
   enabled,
   earlyFinalsRefreshKey,
+  onRowNavigate,
 }: PredictionTodoSectionProps) {
   const [now, setNow] = useState(() => new Date())
   const [earlyData, setEarlyData] = useState<EarlyFinalsTodoPayload | null>(null)
@@ -150,6 +173,7 @@ export function PredictionTodoSection({
       out.push({
         key: "early-finals",
         kind: "earlyFinals",
+        scrollTargetId: "bracket-section-early-finals",
         title: "Early finals (conference finalists + champion)",
         lockAt: earlyData.playoffsStartTime,
         done: pred != null,
@@ -182,6 +206,8 @@ export function PredictionTodoSection({
       out.push({
         key: `playin-${gid}`,
         kind: "playIn",
+        scrollTargetId: playInConferenceScrollTargetId(g.gameType),
+        openPlayInGameId: gid,
         title: `${g.team1} vs ${g.team2}`,
         subtitle: `Play-In · ${formatPlayInGameType(g.gameType)}`,
         lockAt: new Date(g.startTime).toISOString(),
@@ -213,6 +239,8 @@ export function PredictionTodoSection({
         out.push({
           key: `series-${sid}`,
           kind: "series",
+          scrollTargetId: "bracket-section-playoffs",
+          openSeriesId: sid,
           title: `${s.team1} vs ${s.team2}`,
           subtitle: ROUND_LABEL[s.round],
           lockAt: new Date(s.startTime).toISOString(),
@@ -258,43 +286,76 @@ export function PredictionTodoSection({
             </p>
           ) : null}
           <ul className="divide-y divide-border">
-            {rows.map((row) => (
-              <li
-                key={row.key}
-                className="flex gap-3 py-3 first:pt-0"
-                aria-label={
-                  row.done
-                    ? `${row.title}, prediction saved`
-                    : `${row.title}, pick not saved yet`
-                }
-              >
-                <TodoListCircle done={row.done} />
-                <div className="min-w-0 flex-1 space-y-1.5">
-                  <p className="font-medium leading-snug text-foreground">
-                    {row.title}
-                  </p>
-                  {row.subtitle ? (
-                    <p className="text-xs text-muted-foreground">{row.subtitle}</p>
-                  ) : null}
-                  {row.lockAt ? (
-                    <LockCountdown
-                      lockAt={row.lockAt}
-                      className="justify-start"
-                    />
-                  ) : null}
-                  {row.detail ? (
-                    <div className="rounded border-2 border-secondary bg-muted/40 p-2 dark:bg-muted/25">
-                      <div className="text-xs font-semibold text-foreground">
-                        Your Prediction
-                      </div>
-                      <p className="mt-1 text-sm leading-snug text-foreground">
-                        {row.detail}
+            {rows.map((row) => {
+              const label =
+                row.done
+                  ? `${row.title}, prediction saved`
+                  : `${row.title}, pick not saved yet`
+              const interactive = Boolean(onRowNavigate)
+              const inner = (
+                <>
+                  <TodoListCircle done={row.done} />
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <p className="font-medium leading-snug text-foreground">
+                      {row.title}
+                    </p>
+                    {row.subtitle ? (
+                      <p className="text-xs text-muted-foreground">
+                        {row.subtitle}
                       </p>
+                    ) : null}
+                    {row.lockAt ? (
+                      <LockCountdown
+                        lockAt={row.lockAt}
+                        className="justify-start"
+                      />
+                    ) : null}
+                    {row.detail ? (
+                      <div className="rounded border-2 border-secondary bg-muted/40 p-2 dark:bg-muted/25">
+                        <div className="text-xs font-semibold text-foreground">
+                          Your Prediction
+                        </div>
+                        <p className="mt-1 text-sm leading-snug text-foreground">
+                          {row.detail}
+                        </p>
+                      </div>
+                    ) : null}
+                  </div>
+                </>
+              )
+              return (
+                <li key={row.key} className="py-3 first:pt-0">
+                  {interactive ? (
+                    <button
+                      type="button"
+                      className="flex w-full gap-3 rounded-md text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      aria-label={`${label}. Go to bracket to edit.`}
+                      onClick={() =>
+                        onRowNavigate?.({
+                          scrollTargetId: row.scrollTargetId,
+                          kind: row.kind,
+                          openPlayInGameId:
+                            row.kind === "playIn"
+                              ? row.openPlayInGameId
+                              : undefined,
+                          openSeriesId:
+                            row.kind === "series" ? row.openSeriesId : undefined,
+                        })
+                      }
+                    >
+                      {inner}
+                    </button>
+                  ) : (
+                    <div
+                      className="flex gap-3"
+                      aria-label={label}
+                    >
+                      {inner}
                     </div>
-                  ) : null}
-                </div>
-              </li>
-            ))}
+                  )}
+                </li>
+              )
+            })}
           </ul>
         </div>
       )}

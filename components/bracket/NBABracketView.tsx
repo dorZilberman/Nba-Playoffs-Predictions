@@ -3,7 +3,10 @@
 import { PlayoffBracket } from "./PlayoffBracket"
 import { PlayInBracketVisual } from "./PlayInBracketVisual"
 import { EarlyFinalsPredictionsSection } from "./EarlyFinalsPredictionsSection"
-import { PredictionTodoSection } from "./PredictionTodoSection"
+import {
+  PredictionTodoSection,
+  type OpenPredictionNavigatePayload,
+} from "./PredictionTodoSection"
 import { CollapsibleSection } from "@/components/ui/collapsible-section"
 import { PlayInPredictionModal } from "./PlayInPredictionModal"
 import { useSession } from "next-auth/react"
@@ -22,6 +25,36 @@ function formatBracketSectionPoints(n: number): string {
   const v = Number.isFinite(n) ? n : 0
   const sign = v >= 0 ? "+" : ""
   return `${sign}${v} points`
+}
+
+const BRACKET_SECTION_DOM_IDS: Record<
+  OpenPredictionNavigatePayload["kind"],
+  string
+> = {
+  earlyFinals: "bracket-section-early-finals",
+  playIn: "bracket-section-play-in",
+  series: "bracket-section-playoffs",
+}
+
+function expandBracketSectionIfCollapsed(sectionRootId: string) {
+  const root = document.getElementById(sectionRootId)
+  if (!root) return
+  const btn = root.querySelector(":scope > button[type='button']")
+  if (
+    btn instanceof HTMLButtonElement &&
+    btn.getAttribute("aria-expanded") === "false"
+  ) {
+    btn.click()
+  }
+}
+
+function scrollToBracketAnchor(scrollTargetId: string) {
+  const el = document.getElementById(scrollTargetId)
+  if (el) {
+    el.scrollIntoView({ behavior: "smooth", block: "start" })
+    return true
+  }
+  return false
 }
 
 interface NBABracketViewProps {
@@ -55,6 +88,15 @@ export function NBABracketView({
   const [viewedStanding, setViewedStanding] = useState<UserStanding | null>(
     null
   )
+  /** Open Predictions → Playoffs: open prediction modal for this series id. */
+  const [playoffOpenSeriesRequest, setPlayoffOpenSeriesRequest] = useState<{
+    seriesId: string
+    token: number
+  } | null>(null)
+
+  const clearPlayoffOpenSeriesRequest = useCallback(() => {
+    setPlayoffOpenSeriesRequest(null)
+  }, [])
 
   const fetchData = useCallback(async () => {
     try {
@@ -243,32 +285,60 @@ export function NBABracketView({
     }
   }
 
-  const handlePlayInClick = (game: IPlayInGame | undefined) => {
-    if (!game) return // Don't open modal for empty games (only admins can create)
-    // Don't allow clicking when viewing another user's predictions
-    if (isViewingOtherUser) {
-      return
-    }
-    // Check if both teams are filled before allowing prediction
-    if (game.team1 === "TBD" || game.team2 === "TBD" || !game.team1 || !game.team2) {
-      alert("Both teams must be set before making a prediction")
-      return
-    }
-    // Check if winner is already set
-    if (game.winner) {
-      alert("This game is locked. A winner has already been determined.")
-      return
-    }
-    // Check if game is locked by time
-    const now = new Date()
-    const startTime = new Date(game.startTime)
-    if (now >= startTime) {
-      alert("This game is locked. Predictions cannot be made after the deadline.")
-      return
-    }
-    setSelectedPlayIn(game)
-    setIsPlayInModalOpen(true)
-  }
+  const handlePlayInClick = useCallback(
+    (game: IPlayInGame | undefined) => {
+      if (!game) return // Don't open modal for empty games (only admins can create)
+      if (isViewingOtherUser) {
+        return
+      }
+      if (game.team1 === "TBD" || game.team2 === "TBD" || !game.team1 || !game.team2) {
+        alert("Both teams must be set before making a prediction")
+        return
+      }
+      if (game.winner) {
+        alert("This game is locked. A winner has already been determined.")
+        return
+      }
+      const now = new Date()
+      const startTime = new Date(game.startTime)
+      if (now >= startTime) {
+        alert("This game is locked. Predictions cannot be made after the deadline.")
+        return
+      }
+      setSelectedPlayIn(game)
+      setIsPlayInModalOpen(true)
+    },
+    [isViewingOtherUser]
+  )
+
+  const handleOpenPredictionNavigate = useCallback(
+    (payload: OpenPredictionNavigatePayload) => {
+      expandBracketSectionIfCollapsed(BRACKET_SECTION_DOM_IDS[payload.kind])
+      const run = () => {
+        if (!scrollToBracketAnchor(payload.scrollTargetId)) {
+          window.setTimeout(() => scrollToBracketAnchor(payload.scrollTargetId), 250)
+        }
+      }
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(run)
+      })
+
+      window.setTimeout(() => {
+        if (payload.kind === "playIn" && payload.openPlayInGameId) {
+          const game = playInGames.find(
+            (g) => String(g._id) === payload.openPlayInGameId
+          )
+          if (game) handlePlayInClick(game)
+        } else if (payload.kind === "series" && payload.openSeriesId) {
+          setPlayoffOpenSeriesRequest({
+            seriesId: payload.openSeriesId,
+            token: Date.now(),
+          })
+        }
+      }, 450)
+    },
+    [playInGames, handlePlayInClick]
+  )
 
   const handlePlayInPredictionSave = async (prediction: {
     playInGameId: string
@@ -321,8 +391,15 @@ export function NBABracketView({
           !isViewingOtherUser && accountMissingMessage == null
         }
         earlyFinalsRefreshKey={todoEarlyFinalsRefreshKey}
+        onRowNavigate={
+          !isViewingOtherUser && accountMissingMessage == null
+            ? handleOpenPredictionNavigate
+            : undefined
+        }
       />
       <CollapsibleSection
+        id="bracket-section-early-finals"
+        className="scroll-mt-20"
         key={`early-finals-${String(earlyFinalsWindowOpen)}`}
         title="Early Finals Predictions"
         headerRight={sectionPointsHeader(viewedStanding?.earlyFinalsScore ?? 0)}
@@ -340,6 +417,8 @@ export function NBABracketView({
       </CollapsibleSection>
 
       <CollapsibleSection
+        id="bracket-section-play-in"
+        className="scroll-mt-20"
         key={`play-in-${playInSectionHasOpenSlot}`}
         title="Play-In"
         headerRight={sectionPointsHeader(viewedStanding?.playInScore ?? 0)}
@@ -357,6 +436,8 @@ export function NBABracketView({
       </CollapsibleSection>
 
       <CollapsibleSection
+        id="bracket-section-playoffs"
+        className="scroll-mt-20"
         key={`playoffs-${playoffsSectionHasOpenSlot}`}
         title="Playoffs"
         headerRight={sectionPointsHeader(playoffsPointsTotal)}
@@ -369,6 +450,8 @@ export function NBABracketView({
           onPredictionSave={handlePredictionSave}
           isViewingOtherUser={isViewingOtherUser}
           viewingUserName={isViewingOtherUser ? viewingUserName : undefined}
+          openSeriesRequest={playoffOpenSeriesRequest}
+          onOpenSeriesRequestHandled={clearPlayoffOpenSeriesRequest}
         />
       </CollapsibleSection>
 

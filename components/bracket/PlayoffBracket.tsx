@@ -37,6 +37,9 @@ interface PlayoffBracketProps {
   readOnly?: boolean
   whatIfMode?: WhatIfBracketMode
   embedded?: boolean
+  /** Open Predictions: open prediction modal for this series (token changes each request). */
+  openSeriesRequest?: { seriesId: string; token: number } | null
+  onOpenSeriesRequestHandled?: () => void
 }
 
 export function PlayoffBracket({
@@ -48,6 +51,8 @@ export function PlayoffBracket({
   readOnly = false,
   whatIfMode,
   embedded = false,
+  openSeriesRequest,
+  onOpenSeriesRequestHandled,
 }: PlayoffBracketProps) {
   return (
     <PlayoffBracketVisual
@@ -59,6 +64,8 @@ export function PlayoffBracket({
       readOnly={readOnly}
       whatIfMode={whatIfMode}
       embedded={embedded}
+      openSeriesRequest={openSeriesRequest}
+      onOpenSeriesRequestHandled={onOpenSeriesRequestHandled}
     />
   )
 }

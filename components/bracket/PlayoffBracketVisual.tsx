@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { PredictionModal } from "./PredictionModal"
@@ -173,6 +173,9 @@ interface PlayoffBracketVisualProps {
   whatIfMode?: WhatIfBracketMode
   /** Omit outer card, border, and main title (e.g. inside a collapsible section) */
   embedded?: boolean
+  /** Open Predictions: programmatically open the prediction modal for a series. */
+  openSeriesRequest?: { seriesId: string; token: number } | null
+  onOpenSeriesRequestHandled?: () => void
 }
 
 
@@ -187,6 +190,8 @@ export function PlayoffBracketVisual({
   readOnly = false,
   whatIfMode,
   embedded = false,
+  openSeriesRequest,
+  onOpenSeriesRequestHandled,
 }: PlayoffBracketVisualProps) {
   const [selectedSeries, setSelectedSeries] = useState<Series | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -194,6 +199,50 @@ export function PlayoffBracketVisual({
     null
   )
   const [selectedRound, setSelectedRound] = useState<"first" | "second" | "conference" | "finals">("first")
+
+  const handleSeriesClick = useCallback(
+    (s: Series) => {
+      if (readOnly) {
+        return
+      }
+      if (isViewingOtherUser) {
+        return
+      }
+      if (isAdmin && onSeriesClick) {
+        onSeriesClick(s)
+        return
+      }
+      if (s.team1 === "TBD" || s.team2 === "TBD" || !s.team1 || !s.team2) {
+        alert("Both teams must be set before making a prediction")
+        return
+      }
+      if (s.winner) {
+        alert("This series is locked. A winner has already been determined.")
+        return
+      }
+      const now = new Date()
+      const startTime = new Date(s.startTime)
+      if (now >= startTime) {
+        alert("This series is locked. Predictions cannot be made after the deadline.")
+        return
+      }
+      setSelectedSeries(s)
+      setIsModalOpen(true)
+    },
+    [readOnly, isViewingOtherUser, isAdmin, onSeriesClick]
+  )
+
+  useEffect(() => {
+    if (!openSeriesRequest) return
+    const target = series.find(
+      (x) => String(x._id) === openSeriesRequest.seriesId
+    )
+    if (target) {
+      setSelectedRound(target.round)
+      handleSeriesClick(target)
+    }
+    onOpenSeriesRequestHandled?.()
+  }, [openSeriesRequest, series, handleSeriesClick, onOpenSeriesRequestHandled])
 
   const handleBracketClick = (s: Series) => {
     if (
@@ -204,42 +253,6 @@ export function PlayoffBracketVisual({
       return
     }
     handleSeriesClick(s)
-  }
-
-  const handleSeriesClick = (s: Series) => {
-    console.log("Series clicked:", s)
-    if (readOnly) {
-      return
-    }
-    // Don't allow clicking when viewing another user's predictions
-    if (isViewingOtherUser) {
-      return
-    }
-    // If admin mode, use the provided handler
-    if (isAdmin && onSeriesClick) {
-      onSeriesClick(s)
-      return
-    }
-    // Check if both teams are filled before allowing prediction
-    if (s.team1 === "TBD" || s.team2 === "TBD" || !s.team1 || !s.team2) {
-      alert("Both teams must be set before making a prediction")
-      return
-    }
-    // Check if winner is already set
-    if (s.winner) {
-      alert("This series is locked. A winner has already been determined.")
-      return
-    }
-    // Check if series is locked by time
-    const now = new Date()
-    const startTime = new Date(s.startTime)
-    if (now >= startTime) {
-      alert("This series is locked. Predictions cannot be made after the deadline.")
-      return
-    }
-    // Otherwise, open prediction modal
-    setSelectedSeries(s)
-    setIsModalOpen(true)
   }
 
   const handleSavePrediction = async (prediction: {

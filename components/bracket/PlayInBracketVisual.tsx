@@ -81,7 +81,10 @@ export function PlayInBracketVisual({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Western Conference */}
         <div className="space-y-6">
-          <div className="text-center mb-4">
+          <div
+            id="playin-bracket-west-header"
+            className="text-center mb-4 scroll-mt-20"
+          >
             <h3 className="text-lg font-bold">WESTERN CONFERENCE</h3>
           </div>
           <PlayInConferenceBracket
@@ -97,7 +100,10 @@ export function PlayInBracketVisual({
 
         {/* Eastern Conference */}
         <div className="space-y-6">
-          <div className="text-center mb-4">
+          <div
+            id="playin-bracket-east-header"
+            className="text-center mb-4 scroll-mt-20"
+          >
             <h3 className="text-lg font-bold">EASTERN CONFERENCE</h3>
           </div>
           <PlayInConferenceBracket
