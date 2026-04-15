@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { cn } from "@/app/lib/utils/cn"
@@ -17,6 +17,7 @@ import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import type { UserStanding } from "@/app/api/standings/route"
+import { rankByTotalScoreMap } from "@/app/lib/standings/rankByTotalScore"
 
 type SortField =
   | "totalScore"
@@ -87,6 +88,11 @@ export function StandingsTable() {
       return aVal < bVal ? 1 : -1
     }
   })
+
+  const totalScoreRanks = useMemo(
+    () => rankByTotalScoreMap(filteredStandings),
+    [filteredStandings]
+  )
 
   const SortButton = ({ field }: { field: SortField }) => {
     const isActive = sortField === field
@@ -205,7 +211,9 @@ export function StandingsTable() {
                     router.push(`/bracket?userId=${standing.userId}`)
                   }}
                 >
-                  <TableCell>{index + 1}</TableCell>
+                  <TableCell>
+                    {totalScoreRanks.get(standing.userId) ?? index + 1}
+                  </TableCell>
                   <TableCell className={cn("font-medium", isYou && "font-semibold")}>
                     {standing.userName}
                     {isYou && (

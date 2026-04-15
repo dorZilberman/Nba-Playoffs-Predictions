@@ -1,4 +1,5 @@
 import { Nav } from "@/components/nav"
+import { BracketStandingsProvider } from "@/components/context/BracketStandingsContext"
 import { requireAuth } from "@/app/lib/utils/auth"
 import { getSeasonNavGateFlags } from "@/app/lib/season/navFlags"
 import { headers } from "next/headers"
@@ -38,13 +39,15 @@ export default async function MainLayout({
       : "container mx-auto px-4 py-8"
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Nav
-        showWhatIf={showWhatIf}
-        showAnalytics={showAnalytics}
-        siteLaunchRestricted={siteLaunchRestricted}
-      />
-      <main className={mainClass}>{children}</main>
-    </div>
+    <BracketStandingsProvider>
+      <div className="flex min-h-screen flex-col bg-background">
+        <Nav
+          showWhatIf={showWhatIf}
+          showAnalytics={showAnalytics}
+          siteLaunchRestricted={siteLaunchRestricted}
+        />
+        <main className={mainClass}>{children}</main>
+      </div>
+    </BracketStandingsProvider>
   )
 }

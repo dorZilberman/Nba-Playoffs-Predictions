@@ -36,7 +36,7 @@ function formatPointsLabel(n: number): string {
 
 type TeamOption = { name: string; logoUrl: string }
 
-interface EarlyFinalsApiResponse {
+export interface EarlyFinalsApiResponse {
   seasonId: string | null
   playoffsStartTime: string | null
   locked: boolean
@@ -58,6 +58,16 @@ interface EarlyFinalsPredictionsSectionProps {
   viewingUserName?: string
   /** Called after a successful save (e.g. refresh Open Predictions on bracket). */
   onPredictionSaved?: () => void
+  /**
+   * When set, initial GET is skipped (data came from the bracket page bundle).
+   * After save, still refetches via PUT success path unless `refreshAfterSaveOnly` is set.
+   */
+  prefetchedEarlyFinals?: EarlyFinalsApiResponse | null
+  /**
+   * When true, after a successful save only `onPredictionSaved` runs (parent refetches bundle).
+   * Avoids a duplicate GET /api/early-finals from this component.
+   */
+  refreshAfterSaveOnly?: boolean
 }
 
 /** Same footprint as MatchupBox in PlayoffBracketVisual */
@@ -310,9 +320,15 @@ export function EarlyFinalsPredictionsSection({
   isViewingOtherUser = false,
   viewingUserName = "User",
   onPredictionSaved,
+  prefetchedEarlyFinals,
+  refreshAfterSaveOnly = false,
 }: EarlyFinalsPredictionsSectionProps) {
-  const [data, setData] = useState<EarlyFinalsApiResponse | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [data, setData] = useState<EarlyFinalsApiResponse | null>(
+    prefetchedEarlyFinals !== undefined ? prefetchedEarlyFinals : null
+  )
+  const [loading, setLoading] = useState(
+    prefetchedEarlyFinals === undefined
+  )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [picker, setPicker] = useState<"east" | "west" | null>(null)
@@ -367,8 +383,22 @@ export function EarlyFinalsPredictionsSection({
   }, [viewingUserId, isViewingOtherUser])
 
   useEffect(() => {
+    if (prefetchedEarlyFinals !== undefined) {
+      setData(prefetchedEarlyFinals)
+      setLoading(false)
+      if (prefetchedEarlyFinals?.prediction) {
+        setEast(prefetchedEarlyFinals.prediction.eastFinalist)
+        setWest(prefetchedEarlyFinals.prediction.westFinalist)
+        setChampion(prefetchedEarlyFinals.prediction.nbaChampion)
+      } else {
+        setEast("")
+        setWest("")
+        setChampion("")
+      }
+      return
+    }
     fetchData()
-  }, [fetchData])
+  }, [fetchData, prefetchedEarlyFinals])
 
   useEffect(() => {
     if (
@@ -422,8 +452,12 @@ export function EarlyFinalsPredictionsSection({
       if (!res.ok) {
         throw new Error(body.error || "Save failed")
       }
-      await fetchData()
-      onPredictionSaved?.()
+      if (refreshAfterSaveOnly) {
+        await onPredictionSaved?.()
+      } else {
+        await fetchData()
+        onPredictionSaved?.()
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed")
     } finally {

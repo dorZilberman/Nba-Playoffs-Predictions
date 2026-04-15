@@ -34,6 +34,7 @@ import { isSeriesLocked } from "@/app/lib/locking/lockChecker"
 import type { ISeries, RoundType } from "@/app/lib/models/Series"
 import type { IPlayInGame, PlayInGameType } from "@/app/lib/models/PlayInGame"
 import type { IPrediction } from "@/app/lib/models/Prediction"
+import { rankByTotalScoreMap } from "@/app/lib/standings/rankByTotalScore"
 
 type HypoScores = Record<string, { team1Wins: number; team2Wins: number }>
 
@@ -423,9 +424,19 @@ export function WhatIfClient() {
     }
   }
 
+  const standingsFilteredForTable = useMemo(
+    () =>
+      onlyPaidUsers ? standings.filter((s) => s.hasPayed) : standings,
+    [standings, onlyPaidUsers]
+  )
+
+  const totalScoreRanks = useMemo(
+    () => rankByTotalScoreMap(standingsFilteredForTable),
+    [standingsFilteredForTable]
+  )
+
   const sortedStandings = useMemo(() => {
-    const base = onlyPaidUsers ? standings.filter((s) => s.hasPayed) : standings
-    return [...base].sort((a, b) => {
+    return [...standingsFilteredForTable].sort((a, b) => {
       let aVal: string | number = a[sortField]
       let bVal: string | number = b[sortField]
       if (sortField === "userName") {
@@ -437,7 +448,7 @@ export function WhatIfClient() {
       }
       return aVal < bVal ? 1 : -1
     })
-  }, [standings, onlyPaidUsers, sortField, sortDirection])
+  }, [standingsFilteredForTable, sortField, sortDirection])
 
   const SortButton = ({ field }: { field: SortField }) => {
     const isActive = sortField === field
@@ -584,7 +595,9 @@ export function WhatIfClient() {
                       )}
                       data-current-user={isYou || undefined}
                     >
-                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>
+                        {totalScoreRanks.get(row.userId) ?? index + 1}
+                      </TableCell>
                       <TableCell
                         className={cn("font-medium", isYou && "font-semibold")}
                       >

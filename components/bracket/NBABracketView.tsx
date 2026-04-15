@@ -2,22 +2,21 @@
 
 import { PlayoffBracket } from "./PlayoffBracket"
 import { PlayInBracketVisual } from "./PlayInBracketVisual"
-import { EarlyFinalsPredictionsSection } from "./EarlyFinalsPredictionsSection"
+import {
+  EarlyFinalsPredictionsSection,
+  type EarlyFinalsApiResponse,
+} from "./EarlyFinalsPredictionsSection"
 import {
   PredictionTodoSection,
   type OpenPredictionNavigatePayload,
+  type EarlyFinalsTodoPayload,
 } from "./PredictionTodoSection"
 import { CollapsibleSection } from "@/components/ui/collapsible-section"
 import { PlayInPredictionModal } from "./PlayInPredictionModal"
-import { useSession } from "next-auth/react"
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useCallback, useMemo } from "react"
 import type { ISeries } from "@/app/lib/models/Series"
 import type { IPlayInGame } from "@/app/lib/models/PlayInGame"
 import type { IPrediction } from "@/app/lib/models/Prediction"
-import {
-  USER_NOT_IN_DB_CODE,
-  USER_NOT_IN_DB_MESSAGE,
-} from "@/app/lib/userNotInDbConstants"
 import { isPredictionSlotOpen } from "@/app/lib/admin/userRoundCompletion"
 import type { UserStanding } from "@/app/api/standings/route"
 
@@ -57,38 +56,47 @@ function scrollToBracketAnchor(scrollTargetId: string) {
   return false
 }
 
-interface NBABracketViewProps {
+function toEarlyFinalsTodoPayload(
+  r: EarlyFinalsApiResponse | null
+): EarlyFinalsTodoPayload | null {
+  if (!r) return null
+  return {
+    seasonId: r.seasonId,
+    playoffsStartTime: r.playoffsStartTime,
+    locked: r.locked,
+    prediction: r.prediction,
+  }
+}
+
+export interface NBABracketViewProps {
   viewingUserId?: string
   isViewingOtherUser?: boolean
   viewingUserName?: string
+  series: ISeries[]
+  playInGames: IPlayInGame[]
+  predictions: IPrediction[]
+  standingsRows: UserStanding[]
+  earlyFinalsResponse: EarlyFinalsApiResponse | null
+  loading: boolean
+  accountMissingMessage: string | null
+  refreshBracketData: () => Promise<void>
 }
 
 export function NBABracketView({
   viewingUserId,
   isViewingOtherUser = false,
   viewingUserName = "User",
-}: NBABracketViewProps = {}) {
-  const { data: session } = useSession()
-  const [series, setSeries] = useState<ISeries[]>([])
-  const [playInGames, setPlayInGames] = useState<IPlayInGame[]>([])
-  const [predictions, setPredictions] = useState<IPrediction[]>([])
+  series,
+  playInGames,
+  predictions,
+  standingsRows,
+  earlyFinalsResponse,
+  loading,
+  accountMissingMessage,
+  refreshBracketData,
+}: NBABracketViewProps) {
   const [selectedPlayIn, setSelectedPlayIn] = useState<IPlayInGame | null>(null)
   const [isPlayInModalOpen, setIsPlayInModalOpen] = useState(false)
-  const [loading, setLoading] = useState(true)
-  /** Set when GET /api/predictions returns 403 (session user missing from DB). */
-  const [accountMissingMessage, setAccountMissingMessage] = useState<
-    string | null
-  >(null)
-  const [todoEarlyFinalsRefreshKey, setTodoEarlyFinalsRefreshKey] = useState(0)
-  /** `null` until GET /api/early-finals resolves — treat as expanded like before. */
-  const [earlyFinalsWindowOpen, setEarlyFinalsWindowOpen] = useState<
-    boolean | null
-  >(null)
-  /** Scores for the user whose bracket is shown (you or selected user). */
-  const [viewedStanding, setViewedStanding] = useState<UserStanding | null>(
-    null
-  )
-  /** Open Predictions → Playoffs: open prediction modal for this series id. */
   const [playoffOpenSeriesRequest, setPlayoffOpenSeriesRequest] = useState<{
     seriesId: string
     token: number
@@ -98,83 +106,21 @@ export function NBABracketView({
     setPlayoffOpenSeriesRequest(null)
   }, [])
 
-  const fetchData = useCallback(async () => {
-    try {
-      // Build predictions URL with userId and lockedOnly params
-      let predictionsUrl = "/api/predictions"
-      if (viewingUserId) {
-        predictionsUrl = `/api/predictions?userId=${viewingUserId}`
-        if (isViewingOtherUser) {
-          predictionsUrl += "&lockedOnly=true"
-        }
-      }
+  const viewedStanding = useMemo(() => {
+    const targetUserId = viewingUserId
+    if (!targetUserId) return null
+    return standingsRows.find((s) => s.userId === targetUserId) ?? null
+  }, [standingsRows, viewingUserId])
 
-      const targetUserId = viewingUserId ?? session?.user?.id
+  const earlyFinalsWindowOpen = useMemo(() => {
+    if (!earlyFinalsResponse) return null
+    return !!(earlyFinalsResponse.seasonId && !earlyFinalsResponse.locked)
+  }, [earlyFinalsResponse])
 
-      const [seriesRes, playInRes, predictionsRes, standingsRes] =
-        await Promise.all([
-          fetch("/api/series"),
-          fetch("/api/playin"),
-          fetch(predictionsUrl),
-          fetch("/api/standings"),
-        ])
-
-      if (seriesRes.ok) {
-        const data = await seriesRes.json()
-        setSeries(Array.isArray(data) ? data : [])
-      }
-
-      if (playInRes.ok) {
-        const data = await playInRes.json()
-        setPlayInGames(Array.isArray(data) ? data : [])
-      }
-
-      if (predictionsRes.ok) {
-        setAccountMissingMessage(null)
-        const data = await predictionsRes.json()
-        setPredictions(Array.isArray(data) ? data : [])
-      } else if (predictionsRes.status === 403) {
-        const body = (await predictionsRes.json().catch(() => ({}))) as {
-          error?: string
-          code?: string
-        }
-        if (body.code === USER_NOT_IN_DB_CODE) {
-          setAccountMissingMessage(
-            typeof body.error === "string" ? body.error : USER_NOT_IN_DB_MESSAGE
-          )
-        } else {
-          setAccountMissingMessage(null)
-        }
-        setPredictions([])
-      } else {
-        setAccountMissingMessage(null)
-      }
-
-      if (standingsRes.ok && targetUserId) {
-        const standingsData = (await standingsRes.json()) as UserStanding[]
-        const row = Array.isArray(standingsData)
-          ? standingsData.find((s) => s.userId === targetUserId) ?? null
-          : null
-        setViewedStanding(row)
-      } else {
-        setViewedStanding(null)
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error)
-      setViewedStanding(null)
-    } finally {
-      setLoading(false)
-    }
-  }, [viewingUserId, isViewingOtherUser, session?.user?.id])
-
-  const bumpTodoEarlyFinalsRefresh = useCallback(() => {
-    setTodoEarlyFinalsRefreshKey((k) => k + 1)
-  }, [])
-
-  const onEarlyFinalsSaved = useCallback(() => {
-    bumpTodoEarlyFinalsRefresh()
-    void fetchData()
-  }, [bumpTodoEarlyFinalsRefresh, fetchData])
+  const earlyFinalsTodoPayload = useMemo(
+    () => toEarlyFinalsTodoPayload(earlyFinalsResponse),
+    [earlyFinalsResponse]
+  )
 
   const playoffsPointsTotal = useMemo(() => {
     if (!viewedStanding) return 0
@@ -197,31 +143,6 @@ export function NBABracketView({
       ),
     [loading]
   )
-
-  useEffect(() => {
-    fetchData()
-  }, [fetchData])
-
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const res = await fetch("/api/early-finals", { cache: "no-store" })
-        if (!res.ok || cancelled) return
-        const d = (await res.json()) as {
-          seasonId: string | null
-          locked: boolean
-        }
-        if (cancelled) return
-        setEarlyFinalsWindowOpen(!!(d.seasonId && !d.locked))
-      } catch {
-        if (!cancelled) setEarlyFinalsWindowOpen(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [todoEarlyFinalsRefreshKey])
 
   const playInSectionHasOpenSlot = useMemo(() => {
     const now = new Date()
@@ -274,7 +195,7 @@ export function NBABracketView({
       })
 
       if (res.ok) {
-        await fetchData() // Refresh data
+        await refreshBracketData()
       } else {
         const error = await res.json()
         throw new Error(error.error || "Failed to save prediction")
@@ -287,7 +208,7 @@ export function NBABracketView({
 
   const handlePlayInClick = useCallback(
     (game: IPlayInGame | undefined) => {
-      if (!game) return // Don't open modal for empty games (only admins can create)
+      if (!game) return
       if (isViewingOtherUser) {
         return
       }
@@ -361,7 +282,7 @@ export function NBABracketView({
       })
 
       if (res.ok) {
-        await fetchData() // Refresh data
+        await refreshBracketData()
       } else {
         const error = await res.json()
         throw new Error(error.error || "Failed to save prediction")
@@ -371,6 +292,10 @@ export function NBABracketView({
       throw error
     }
   }
+
+  const onEarlyFinalsSaved = useCallback(async () => {
+    await refreshBracketData()
+  }, [refreshBracketData])
 
   return (
     <div className="w-full space-y-6">
@@ -390,7 +315,8 @@ export function NBABracketView({
         enabled={
           !isViewingOtherUser && accountMissingMessage == null
         }
-        earlyFinalsRefreshKey={todoEarlyFinalsRefreshKey}
+        earlyFinalsTodoBundled
+        earlyFinalsTodoFromParent={earlyFinalsTodoPayload}
         onRowNavigate={
           !isViewingOtherUser && accountMissingMessage == null
             ? handleOpenPredictionNavigate
@@ -410,6 +336,8 @@ export function NBABracketView({
           viewingUserId={viewingUserId}
           isViewingOtherUser={isViewingOtherUser}
           viewingUserName={viewingUserName}
+          prefetchedEarlyFinals={earlyFinalsResponse}
+          refreshAfterSaveOnly={!isViewingOtherUser}
           onPredictionSaved={
             !isViewingOtherUser ? onEarlyFinalsSaved : undefined
           }
@@ -455,14 +383,16 @@ export function NBABracketView({
         />
       </CollapsibleSection>
 
-      {/* Play-In Prediction Modal */}
       {selectedPlayIn && (
         <PlayInPredictionModal
           game={selectedPlayIn}
           prediction={predictions.find((p) => {
-            const gameId = typeof p.playInGameId === 'object' && p.playInGameId !== null
-              ? (p.playInGameId as any)._id?.toString()
-              : (p.playInGameId as string | undefined)?.toString()
+            const gameId =
+              typeof p.playInGameId === "object" && p.playInGameId !== null
+                ? String(
+                    (p.playInGameId as { _id?: { toString(): string } })._id
+                  )
+                : (p.playInGameId as string | undefined)?.toString()
             return gameId === selectedPlayIn._id?.toString()
           })}
           isOpen={isPlayInModalOpen}

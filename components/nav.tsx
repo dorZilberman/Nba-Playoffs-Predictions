@@ -8,6 +8,8 @@ import { Moon, Sun, Menu, X } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
 import type { UserStanding } from "@/app/api/standings/route"
+import { rankByTotalScoreMap } from "@/app/lib/standings/rankByTotalScore"
+import { useBracketStandings } from "@/components/context/BracketStandingsContext"
 
 type NavProps = {
   showWhatIf: boolean
@@ -23,6 +25,7 @@ export function Nav({
 }: NavProps) {
   const pathname = usePathname()
   const { data: session } = useSession()
+  const { standings: bracketPageStandings } = useBracketStandings()
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -46,6 +49,33 @@ export function Nav({
       setStandingsSummary(null)
       return
     }
+
+    const applyStandingsRows = (rows: UserStanding[]) => {
+      if (rows.length === 0) {
+        setStandingsSummary(null)
+        return
+      }
+      const ranks = rankByTotalScoreMap(rows)
+      const row = rows.find((s) => s.userId === uid)
+      if (!row) {
+        setStandingsSummary(null)
+        return
+      }
+      setStandingsSummary({
+        totalScore: row.totalScore,
+        rank: ranks.get(uid) ?? 1,
+      })
+    }
+
+    if (pathname === "/bracket") {
+      if (bracketPageStandings !== null) {
+        applyStandingsRows(bracketPageStandings)
+      } else {
+        setStandingsSummary(null)
+      }
+      return
+    }
+
     let cancelled = false
     ;(async () => {
       try {
@@ -53,20 +83,7 @@ export function Nav({
         if (!res.ok || cancelled) return
         const data = (await res.json()) as UserStanding[] | { error?: string }
         if (!Array.isArray(data) || cancelled) return
-        if (data.length === 0) {
-          setStandingsSummary(null)
-          return
-        }
-        const sorted = [...data].sort((a, b) => b.totalScore - a.totalScore)
-        const idx = sorted.findIndex((s) => s.userId === uid)
-        if (idx < 0 || cancelled) {
-          setStandingsSummary(null)
-          return
-        }
-        setStandingsSummary({
-          totalScore: sorted[idx].totalScore,
-          rank: idx + 1,
-        })
+        applyStandingsRows(data)
       } catch {
         if (!cancelled) setStandingsSummary(null)
       }
@@ -74,7 +91,7 @@ export function Nav({
     return () => {
       cancelled = true
     }
-  }, [session?.user?.id, pathname, siteLaunchRestricted])
+  }, [session?.user?.id, pathname, siteLaunchRestricted, bracketPageStandings])
 
   if (!session) {
     return null

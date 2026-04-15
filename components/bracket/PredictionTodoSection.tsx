@@ -24,7 +24,7 @@ const ROUND_ORDER: RoundType[] = [
   "finals",
 ]
 
-type EarlyFinalsTodoPayload = {
+export type EarlyFinalsTodoPayload = {
   seasonId: string | null
   playoffsStartTime: string | null
   locked: boolean
@@ -115,8 +115,13 @@ export interface PredictionTodoSectionProps {
   predictions: IPrediction[]
   loading: boolean
   enabled: boolean
-  /** Bump after early-finals save so this section refetches `/api/early-finals`. */
-  earlyFinalsRefreshKey: number
+  /**
+   * When true, parent owns early-finals data (`earlyFinalsTodoFromParent`); no internal
+   * GET /api/early-finals.
+   */
+  earlyFinalsTodoBundled?: boolean
+  /** Shaped like GET /api/early-finals for the todo list (null = no row / no season). */
+  earlyFinalsTodoFromParent?: EarlyFinalsTodoPayload | null
   /** Scroll to the matching bracket control when a row is activated. */
   onRowNavigate?: (payload: OpenPredictionNavigatePayload) => void
 }
@@ -127,12 +132,14 @@ export function PredictionTodoSection({
   predictions,
   loading: parentLoading,
   enabled,
-  earlyFinalsRefreshKey,
+  earlyFinalsTodoBundled = false,
+  earlyFinalsTodoFromParent,
   onRowNavigate,
 }: PredictionTodoSectionProps) {
   const [now, setNow] = useState(() => new Date())
-  const [earlyData, setEarlyData] = useState<EarlyFinalsTodoPayload | null>(null)
-  const [earlyLoading, setEarlyLoading] = useState(true)
+  const [earlyDataInternal, setEarlyDataInternal] =
+    useState<EarlyFinalsTodoPayload | null>(null)
+  const [earlyLoadingInternal, setEarlyLoadingInternal] = useState(true)
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 30_000)
@@ -141,29 +148,39 @@ export function PredictionTodoSection({
 
   const fetchEarlyFinals = useCallback(async () => {
     if (!enabled) {
-      setEarlyData(null)
-      setEarlyLoading(false)
+      setEarlyDataInternal(null)
+      setEarlyLoadingInternal(false)
       return
     }
-    setEarlyLoading(true)
+    setEarlyLoadingInternal(true)
     try {
       const res = await fetch("/api/early-finals", { cache: "no-store" })
       if (!res.ok) {
-        setEarlyData(null)
+        setEarlyDataInternal(null)
         return
       }
       const json = (await res.json()) as EarlyFinalsTodoPayload
-      setEarlyData(json)
+      setEarlyDataInternal(json)
     } catch {
-      setEarlyData(null)
+      setEarlyDataInternal(null)
     } finally {
-      setEarlyLoading(false)
+      setEarlyLoadingInternal(false)
     }
   }, [enabled])
 
   useEffect(() => {
+    if (earlyFinalsTodoBundled) {
+      return
+    }
     fetchEarlyFinals()
-  }, [fetchEarlyFinals, earlyFinalsRefreshKey])
+  }, [fetchEarlyFinals, earlyFinalsTodoBundled])
+
+  const earlyData = earlyFinalsTodoBundled
+    ? earlyFinalsTodoFromParent ?? null
+    : earlyDataInternal
+  const earlyLoading = earlyFinalsTodoBundled
+    ? parentLoading
+    : earlyLoadingInternal
 
   const rows = useMemo((): TodoRow[] => {
     const out: TodoRow[] = []
