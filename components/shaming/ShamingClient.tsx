@@ -1,8 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { LockCountdown } from "@/components/bracket/LockCountdown"
+import { cn } from "@/app/lib/utils/cn"
 import type { ShamingApiResponse, ShamingItem } from "@/app/lib/shaming/types"
 
 function formatPlayInGameType(gameType: string): string {
@@ -23,12 +25,64 @@ function formatWhen(iso: string): string {
   }
 }
 
-function ShamingItemCard({ item }: { item: ShamingItem }) {
+function MissingPredictionCount({ count }: { count: number }) {
+  return (
+    <p className="text-sm font-medium tabular-nums text-foreground">
+      {count === 1
+        ? "1 user without a prediction"
+        : `${count} users without a prediction`}
+    </p>
+  )
+}
+
+function ShamingMissingNameList({
+  users,
+  currentUserId,
+}: {
+  users: { userId: string; userName: string }[]
+  currentUserId: string | undefined
+}) {
+  return (
+    <ul className="list-disc space-y-1 pl-5 text-sm">
+      {users.map((u) => {
+        const isYou = !!currentUserId && u.userId === currentUserId
+        return (
+          <li
+            key={u.userId}
+            className={cn(
+              isYou &&
+                "relative -ml-[1.125rem] list-none pl-[1.125rem] rounded-md bg-primary/10 py-0.5 pr-2 dark:bg-primary/15 border-l-2 border-l-primary font-semibold"
+            )}
+            data-current-user={isYou || undefined}
+          >
+            <span className={cn("font-medium", isYou && "font-semibold")}>
+              {u.userName}
+              {isYou && (
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  (you)
+                </span>
+              )}
+            </span>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+function ShamingItemCard({
+  item,
+  currentUserId,
+}: {
+  item: ShamingItem
+  currentUserId: string | undefined
+}) {
   if (item.kind === "earlyFinals") {
     return (
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-lg">{item.label}</CardTitle>
+          <MissingPredictionCount count={item.missingUsers.length} />
           {item.locksAt && (
             <p className="text-sm text-muted-foreground">
               Locks {formatWhen(item.locksAt)}
@@ -39,11 +93,10 @@ function ShamingItemCard({ item }: { item: ShamingItem }) {
           )}
         </CardHeader>
         <CardContent>
-          <ul className="list-disc space-y-1 pl-5 text-sm">
-            {item.missingNames.map((name) => (
-              <li key={name}>{name}</li>
-            ))}
-          </ul>
+          <ShamingMissingNameList
+            users={item.missingUsers}
+            currentUserId={currentUserId}
+          />
         </CardContent>
       </Card>
     )
@@ -54,6 +107,7 @@ function ShamingItemCard({ item }: { item: ShamingItem }) {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-lg">{item.label}</CardTitle>
+          <MissingPredictionCount count={item.missingUsers.length} />
           <p className="text-sm text-muted-foreground">
             Play-In · {formatPlayInGameType(item.gameType)} · locks{" "}
             {formatWhen(item.startTime)}
@@ -61,11 +115,10 @@ function ShamingItemCard({ item }: { item: ShamingItem }) {
           <LockCountdown lockAt={item.startTime} className="mt-1 justify-start" />
         </CardHeader>
         <CardContent>
-          <ul className="list-disc space-y-1 pl-5 text-sm">
-            {item.missingNames.map((name) => (
-              <li key={name}>{name}</li>
-            ))}
-          </ul>
+          <ShamingMissingNameList
+            users={item.missingUsers}
+            currentUserId={currentUserId}
+          />
         </CardContent>
       </Card>
     )
@@ -75,23 +128,25 @@ function ShamingItemCard({ item }: { item: ShamingItem }) {
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-lg">{item.label}</CardTitle>
+        <MissingPredictionCount count={item.missingUsers.length} />
         <p className="text-sm text-muted-foreground">
           {item.roundLabel} · locks {formatWhen(item.startTime)}
         </p>
         <LockCountdown lockAt={item.startTime} className="mt-1 justify-start" />
       </CardHeader>
       <CardContent>
-        <ul className="list-disc space-y-1 pl-5 text-sm">
-          {item.missingNames.map((name) => (
-            <li key={name}>{name}</li>
-          ))}
-        </ul>
+        <ShamingMissingNameList
+          users={item.missingUsers}
+          currentUserId={currentUserId}
+        />
       </CardContent>
     </Card>
   )
 }
 
 export function ShamingClient() {
+  const { data: session } = useSession()
+  const currentUserId = session?.user?.id
   const [data, setData] = useState<ShamingApiResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -169,7 +224,11 @@ export function ShamingClient() {
       {!loading && !error && data && data.items.length > 0 && (
         <div className="space-y-4">
           {data.items.map((item) => (
-            <ShamingItemCard key={itemKey(item)} item={item} />
+            <ShamingItemCard
+              key={itemKey(item)}
+              item={item}
+              currentUserId={currentUserId}
+            />
           ))}
         </div>
       )}

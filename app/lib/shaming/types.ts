@@ -1,12 +1,17 @@
 import type { RoundType } from "@/app/lib/models/Series"
 
+export type ShamingMissingUser = {
+  userId: string
+  userName: string
+}
+
 export type ShamingPlayInItem = {
   kind: "playIn"
   id: string
   gameType: string
   label: string
   startTime: string
-  missingNames: string[]
+  missingUsers: ShamingMissingUser[]
 }
 
 export type ShamingSeriesItem = {
@@ -16,7 +21,7 @@ export type ShamingSeriesItem = {
   roundLabel: string
   label: string
   startTime: string
-  missingNames: string[]
+  missingUsers: ShamingMissingUser[]
 }
 
 export type ShamingEarlyFinalsItem = {
@@ -25,7 +30,7 @@ export type ShamingEarlyFinalsItem = {
   label: string
   /** When early finals lock (first playoff game), if known */
   locksAt: string | null
-  missingNames: string[]
+  missingUsers: ShamingMissingUser[]
 }
 
 export type ShamingItem =

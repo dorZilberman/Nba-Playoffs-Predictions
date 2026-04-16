@@ -125,31 +125,31 @@ export async function GET(request: NextRequest) {
 
       const poolIdStrings = poolUsers.map((u) => String(u._id))
 
-      function namesMissingForSeries(openSeriesId: string): string[] {
-        const missing: string[] = []
+      function usersMissingForSeries(openSeriesId: string) {
+        const missing: { userId: string; userName: string }[] = []
         for (const uid of poolIdStrings) {
           if (!seriesPredByUser.get(uid)!.has(openSeriesId)) {
-            missing.push(idToName.get(uid)!)
+            missing.push({ userId: uid, userName: idToName.get(uid)! })
           }
         }
         return missing
       }
 
-      function namesMissingForPlayIn(openGameId: string): string[] {
-        const missing: string[] = []
+      function usersMissingForPlayIn(openGameId: string) {
+        const missing: { userId: string; userName: string }[] = []
         for (const uid of poolIdStrings) {
           if (!playInPredByUser.get(uid)!.has(openGameId)) {
-            missing.push(idToName.get(uid)!)
+            missing.push({ userId: uid, userName: idToName.get(uid)! })
           }
         }
         return missing
       }
 
-      function namesMissingEarlyFinals(): string[] {
-        const missing: string[] = []
+      function usersMissingEarlyFinals() {
+        const missing: { userId: string; userName: string }[] = []
         for (const uid of poolIdStrings) {
           if (!earlySubmitted.has(uid)) {
-            missing.push(idToName.get(uid)!)
+            missing.push({ userId: uid, userName: idToName.get(uid)! })
           }
         }
         return missing
@@ -164,14 +164,14 @@ export async function GET(request: NextRequest) {
           : null
 
       if (earlyFinalsOpen) {
-        const missingNames = namesMissingEarlyFinals()
-        if (missingNames.length > 0) {
+        const missingUsers = usersMissingEarlyFinals()
+        if (missingUsers.length > 0) {
           items.push({
             kind: "earlyFinals",
             id: "early-finals",
             label: "Early finals (conference finalists + champion)",
             locksAt: locksAtIso,
-            missingNames,
+            missingUsers,
           })
         }
       }
@@ -189,15 +189,15 @@ export async function GET(request: NextRequest) {
 
       for (const g of openPlayInSorted) {
         const id = String(g._id)
-        const missingNames = namesMissingForPlayIn(id)
-        if (missingNames.length === 0) continue
+        const missingUsers = usersMissingForPlayIn(id)
+        if (missingUsers.length === 0) continue
         items.push({
           kind: "playIn",
           id,
           gameType: g.gameType,
           label: `${g.team1} vs ${g.team2}`,
           startTime: new Date(g.startTime).toISOString(),
-          missingNames,
+          missingUsers,
         })
       }
 
@@ -223,8 +223,8 @@ export async function GET(request: NextRequest) {
 
         for (const s of openSeries) {
           const id = String(s._id)
-          const missingNames = namesMissingForSeries(id)
-          if (missingNames.length === 0) continue
+          const missingUsers = usersMissingForSeries(id)
+          if (missingUsers.length === 0) continue
           const r = s.round as RoundType
           items.push({
             kind: "series",
@@ -233,7 +233,7 @@ export async function GET(request: NextRequest) {
             roundLabel: ROUND_LABEL[r],
             label: `${s.team1} vs ${s.team2}`,
             startTime: new Date(s.startTime).toISOString(),
-            missingNames,
+            missingUsers,
           })
         }
       }
