@@ -79,7 +79,10 @@ export interface NBABracketViewProps {
   earlyFinalsResponse: EarlyFinalsApiResponse | null
   loading: boolean
   accountMissingMessage: string | null
-  refreshBracketData: () => Promise<void>
+  /** After play-in / series save: refetch predictions only. */
+  refreshPredictionsOnly: () => Promise<void>
+  /** After early finals save: refetch standings + early-finals (scores). */
+  refreshAfterEarlyFinalsSave: () => Promise<void>
 }
 
 export function NBABracketView({
@@ -93,7 +96,8 @@ export function NBABracketView({
   earlyFinalsResponse,
   loading,
   accountMissingMessage,
-  refreshBracketData,
+  refreshPredictionsOnly,
+  refreshAfterEarlyFinalsSave,
 }: NBABracketViewProps) {
   const [selectedPlayIn, setSelectedPlayIn] = useState<IPlayInGame | null>(null)
   const [isPlayInModalOpen, setIsPlayInModalOpen] = useState(false)
@@ -195,7 +199,7 @@ export function NBABracketView({
       })
 
       if (res.ok) {
-        await refreshBracketData()
+        await refreshPredictionsOnly()
       } else {
         const error = await res.json()
         throw new Error(error.error || "Failed to save prediction")
@@ -282,7 +286,7 @@ export function NBABracketView({
       })
 
       if (res.ok) {
-        await refreshBracketData()
+        await refreshPredictionsOnly()
       } else {
         const error = await res.json()
         throw new Error(error.error || "Failed to save prediction")
@@ -294,8 +298,8 @@ export function NBABracketView({
   }
 
   const onEarlyFinalsSaved = useCallback(async () => {
-    await refreshBracketData()
-  }, [refreshBracketData])
+    await refreshAfterEarlyFinalsSave()
+  }, [refreshAfterEarlyFinalsSave])
 
   return (
     <div className="w-full space-y-6">

@@ -64,46 +64,27 @@ export function BracketPageClient() {
     viewingUserId && viewingUserId !== session?.user?.id
   )
 
-  const fetchBracketBundle = useCallback(async () => {
-    const uid = viewingUserId ?? session?.user?.id ?? undefined
-    let predictionsUrl = "/api/predictions"
+  const predictionsUrl = useMemo(() => {
+    let url = "/api/predictions"
     if (viewingUserId) {
-      predictionsUrl = `/api/predictions?userId=${viewingUserId}`
+      url = `/api/predictions?userId=${viewingUserId}`
       if (isViewingOtherUser) {
-        predictionsUrl += "&lockedOnly=true"
+        url += "&lockedOnly=true"
       }
     }
+    return url
+  }, [viewingUserId, isViewingOtherUser])
 
+  const earlyFinalsFetchUrl = useMemo(() => {
     const earlyQ =
       viewingUserId && isViewingOtherUser
         ? `?userId=${encodeURIComponent(viewingUserId)}`
         : ""
+    return `/api/early-finals${earlyQ}`
+  }, [viewingUserId, isViewingOtherUser])
 
-    setLoading(true)
-    try {
-      const [seriesRes, playInRes, predRes, standRes, earlyRes] =
-        await Promise.all([
-          fetch("/api/series"),
-          fetch("/api/playin"),
-          fetch(predictionsUrl),
-          fetch("/api/standings"),
-          fetch(`/api/early-finals${earlyQ}`, { cache: "no-store" }),
-        ])
-
-      if (seriesRes.ok) {
-        const data = await seriesRes.json()
-        setSeries(Array.isArray(data) ? data : [])
-      } else {
-        setSeries([])
-      }
-
-      if (playInRes.ok) {
-        const data = await playInRes.json()
-        setPlayInGames(Array.isArray(data) ? data : [])
-      } else {
-        setPlayInGames([])
-      }
-
+  const applyPredictionsResponse = useCallback(
+    async (predRes: Response) => {
       if (predRes.ok) {
         setAccountMissingMessage(null)
         const data = await predRes.json()
@@ -125,6 +106,76 @@ export function BracketPageClient() {
         setAccountMissingMessage(null)
         setPredictions([])
       }
+    },
+    []
+  )
+
+  /** After play-in / series prediction save: picks list only (no series, standings, etc.). */
+  const fetchPredictionsOnly = useCallback(async () => {
+    try {
+      const predRes = await fetch(predictionsUrl)
+      await applyPredictionsResponse(predRes)
+    } catch (e) {
+      console.error("Predictions refresh failed:", e)
+    }
+  }, [predictionsUrl, applyPredictionsResponse])
+
+  /** After early finals save: standings + early-finals (scores in headers/nav); skips series/play-in. */
+  const fetchStandingsAndEarlyFinalsOnly = useCallback(async () => {
+    try {
+      const [standRes, earlyRes] = await Promise.all([
+        fetch("/api/standings"),
+        fetch(earlyFinalsFetchUrl, { cache: "no-store" }),
+      ])
+
+      if (standRes.ok) {
+        const raw = await standRes.json()
+        const rows = normalizeStandings(raw)
+        setStandings(rows)
+        setStandingsForNav(rows)
+      } else {
+        setStandings([])
+        setStandingsForNav([])
+      }
+
+      if (earlyRes.ok) {
+        const json = (await earlyRes.json()) as EarlyFinalsApiResponse
+        setEarlyFinals(json)
+      } else {
+        setEarlyFinals(null)
+      }
+    } catch (e) {
+      console.error("Standings / early-finals refresh failed:", e)
+    }
+  }, [earlyFinalsFetchUrl, setStandingsForNav])
+
+  const fetchBracketBundle = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [seriesRes, playInRes, predRes, standRes, earlyRes] =
+        await Promise.all([
+          fetch("/api/series"),
+          fetch("/api/playin"),
+          fetch(predictionsUrl),
+          fetch("/api/standings"),
+          fetch(earlyFinalsFetchUrl, { cache: "no-store" }),
+        ])
+
+      if (seriesRes.ok) {
+        const data = await seriesRes.json()
+        setSeries(Array.isArray(data) ? data : [])
+      } else {
+        setSeries([])
+      }
+
+      if (playInRes.ok) {
+        const data = await playInRes.json()
+        setPlayInGames(Array.isArray(data) ? data : [])
+      } else {
+        setPlayInGames([])
+      }
+
+      await applyPredictionsResponse(predRes)
 
       if (standRes.ok) {
         const raw = await standRes.json()
@@ -150,9 +201,9 @@ export function BracketPageClient() {
       setLoading(false)
     }
   }, [
-    viewingUserId,
-    isViewingOtherUser,
-    session?.user?.id,
+    predictionsUrl,
+    earlyFinalsFetchUrl,
+    applyPredictionsResponse,
     setStandingsForNav,
   ])
 
@@ -240,7 +291,8 @@ export function BracketPageClient() {
         earlyFinalsResponse={earlyFinals}
         loading={loading}
         accountMissingMessage={accountMissingMessage}
-        refreshBracketData={fetchBracketBundle}
+        refreshPredictionsOnly={fetchPredictionsOnly}
+        refreshAfterEarlyFinalsSave={fetchStandingsAndEarlyFinalsOnly}
       />
     </div>
   )
