@@ -40,6 +40,19 @@ const ROUND_LABELS: Record<RoundType, string> = {
   finals: "Finals",
 }
 
+const ANALYTICS_ROUNDS: RoundType[] = [
+  "early-finals",
+  "playin",
+  "first",
+  "second",
+  "conference",
+  "finals",
+]
+
+function isAnalyticsRound(x: string): x is RoundType {
+  return (ANALYTICS_ROUNDS as string[]).includes(x)
+}
+
 function isEarlyFinalsBlock(
   item: AnalyticsItem
 ): item is EarlyFinalsAnalyticsBlock {
@@ -136,8 +149,7 @@ function ListSideSelectedByTooltipContent({
 }
 
 export function AnalyticsClient() {
-  const [selectedRound, setSelectedRound] =
-    useState<RoundType>("early-finals")
+  const [selectedRound, setSelectedRound] = useState<RoundType | null>(null)
   const [items, setItems] = useState<AnalyticsItem[]>([])
   const [loading, setLoading] = useState(true)
   const [earlyFinalsNoSeason, setEarlyFinalsNoSeason] = useState(false)
@@ -154,7 +166,9 @@ export function AnalyticsClient() {
       const res = await fetch(`/api/analytics?${params.toString()}`, {
         cache: "no-store",
       })
-      if (!res.ok) return
+      if (!res.ok) {
+        return
+      }
 
       if (round === "early-finals") {
         const data = (await res.json()) as EarlyFinalsAnalyticsApiResponse
@@ -179,21 +193,39 @@ export function AnalyticsClient() {
   }, [])
 
   useEffect(() => {
-    fetchAnalytics(selectedRound, onlyPaidUsers)
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch("/api/analytics/default-round", {
+          cache: "no-store",
+        })
+        if (cancelled) return
+        if (res.ok) {
+          const data = (await res.json()) as { defaultRound?: RoundType }
+          const r = data.defaultRound
+          if (r && isAnalyticsRound(r)) {
+            setSelectedRound(r)
+            return
+          }
+        }
+        setSelectedRound("early-finals")
+      } catch {
+        if (!cancelled) setSelectedRound("early-finals")
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (selectedRound == null) return
+    void fetchAnalytics(selectedRound, onlyPaidUsers)
   }, [selectedRound, onlyPaidUsers, fetchAnalytics])
 
   useEffect(() => {
     setAnalyticsView("list")
   }, [selectedRound])
-
-  const rounds: RoundType[] = [
-    "early-finals",
-    "playin",
-    "first",
-    "second",
-    "conference",
-    "finals",
-  ]
 
   const emptyMessage = "No games found for this round."
 
@@ -201,7 +233,7 @@ export function AnalyticsClient() {
     <div className="space-y-6">
       {/* Tabs */}
       <div className="flex gap-2 border-b pb-2 overflow-x-auto">
-        {rounds.map((round) => (
+        {ANALYTICS_ROUNDS.map((round) => (
           <Button
             key={round}
             variant={selectedRound === round ? "default" : "ghost"}
