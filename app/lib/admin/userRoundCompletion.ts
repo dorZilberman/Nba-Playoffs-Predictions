@@ -28,6 +28,18 @@ export function isPredictionSlotOpen(
   return now.getTime() < new Date(startTime).getTime()
 }
 
+/**
+ * Matchup still undecided: both teams set and no winner (pick may be open, or locked but result not final).
+ * Used for default-expanded bracket sections (Play-In, Playoffs).
+ */
+export function isUndecidedMatchup(
+  team1: string,
+  team2: string,
+  winner: string | undefined
+): boolean {
+  return teamsSetForMatchup(team1, team2) && !winner
+}
+
 export type RoundCompletionKey =
   | "earlyFinals"
   | "playIn"

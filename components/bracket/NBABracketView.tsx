@@ -17,7 +17,9 @@ import { useState, useCallback, useMemo } from "react"
 import type { ISeries } from "@/app/lib/models/Series"
 import type { IPlayInGame } from "@/app/lib/models/PlayInGame"
 import type { IPrediction } from "@/app/lib/models/Prediction"
-import { isPredictionSlotOpen } from "@/app/lib/admin/userRoundCompletion"
+import {
+  isUndecidedMatchup,
+} from "@/app/lib/admin/userRoundCompletion"
 import type { UserStanding } from "@/app/api/standings/route"
 
 function formatBracketSectionPoints(n: number): string {
@@ -148,31 +150,22 @@ export function NBABracketView({
     [loading]
   )
 
-  const playInSectionHasOpenSlot = useMemo(() => {
-    const now = new Date()
-    return playInGames.some((g) =>
-      isPredictionSlotOpen(
-        g.team1,
-        g.team2,
-        g.winner,
-        new Date(g.startTime),
-        now
-      )
-    )
-  }, [playInGames])
+  /** Open by default when any game is still open for picks or locked but awaiting a winner. */
+  const playInSectionDefaultOpen = useMemo(
+    () =>
+      playInGames.some((g) =>
+        isUndecidedMatchup(g.team1, g.team2, g.winner)
+      ),
+    [playInGames]
+  )
 
-  const playoffsSectionHasOpenSlot = useMemo(() => {
-    const now = new Date()
-    return series.some((s) =>
-      isPredictionSlotOpen(
-        s.team1,
-        s.team2,
-        s.winner,
-        new Date(s.startTime),
-        now
-      )
-    )
-  }, [series])
+  const playoffsSectionDefaultOpen = useMemo(
+    () =>
+      series.some((s) =>
+        isUndecidedMatchup(s.team1, s.team2, s.winner)
+      ),
+    [series]
+  )
 
   const handlePredictionSave = async (prediction: {
     seriesId: string
@@ -351,10 +344,10 @@ export function NBABracketView({
       <CollapsibleSection
         id="bracket-section-play-in"
         className="scroll-mt-20"
-        key={`play-in-${playInSectionHasOpenSlot}`}
+        key={`play-in-${playInSectionDefaultOpen}`}
         title="Play-In"
         headerRight={sectionPointsHeader(viewedStanding?.playInScore ?? 0)}
-        defaultOpen={playInSectionHasOpenSlot}
+        defaultOpen={playInSectionDefaultOpen}
       >
         <PlayInBracketVisual
           embedded
@@ -370,10 +363,10 @@ export function NBABracketView({
       <CollapsibleSection
         id="bracket-section-playoffs"
         className="scroll-mt-20"
-        key={`playoffs-${playoffsSectionHasOpenSlot}`}
+        key={`playoffs-${playoffsSectionDefaultOpen}`}
         title="Playoffs"
         headerRight={sectionPointsHeader(playoffsPointsTotal)}
-        defaultOpen={playoffsSectionHasOpenSlot}
+        defaultOpen={playoffsSectionDefaultOpen}
       >
         <PlayoffBracket
           embedded
