@@ -35,12 +35,12 @@ export default async function MainLayout({
 
   const mainClass =
     pathname === "/launch"
-      ? "w-full flex-1 px-0 py-0"
-      : "container mx-auto px-4 py-8"
+      ? "w-full min-w-0 flex-1 px-0 py-0"
+      : "container mx-auto min-w-0 flex-1 px-4 pt-8 pb-[calc(2rem+env(safe-area-inset-bottom,0px))]"
 
   return (
     <BracketStandingsProvider>
-      <div className="flex min-h-screen flex-col bg-background">
+      <div className="flex min-h-screen min-h-dvh flex-col bg-background">
         <Nav
           showWhatIf={showWhatIf}
           showAnalytics={showAnalytics}

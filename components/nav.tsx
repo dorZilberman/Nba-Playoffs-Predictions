@@ -18,6 +18,13 @@ type NavProps = {
   siteLaunchRestricted?: boolean
 }
 
+function isActiveNav(pathname: string, href: string): boolean {
+  if (href === "/minigames") {
+    return pathname === "/minigames" || pathname.startsWith("/minigames/")
+  }
+  return pathname === href
+}
+
 export function Nav({
   showWhatIf,
   showAnalytics,
@@ -111,6 +118,7 @@ export function Nav({
           ? [{ href: "/analytics" as const, label: "Analytics" }]
           : []),
         { href: "/standings", label: "Standings" },
+        { href: "/minigames", label: "Mini Games" },
         ...(showWhatIf ? [{ href: "/what-if" as const, label: "What if" }] : []),
         { href: "/rules", label: "Rules" },
       ]
@@ -151,7 +159,7 @@ export function Nav({
                   key={item.href}
                   href={item.href}
                   className={`text-sm font-medium transition-colors hover:text-primary ${
-                    pathname === item.href
+                    isActiveNav(pathname, item.href)
                       ? "text-foreground"
                       : "text-muted-foreground"
                   }`}
@@ -232,7 +240,7 @@ export function Nav({
                   href={item.href}
                   onClick={closeSidebar}
                   className={`block px-4 py-3 rounded-md text-sm font-medium transition-colors ${
-                    pathname === item.href
+                    isActiveNav(pathname, item.href)
                       ? "bg-primary text-primary-foreground"
                       : "text-foreground hover:bg-accent hover:text-accent-foreground"
                   }`}

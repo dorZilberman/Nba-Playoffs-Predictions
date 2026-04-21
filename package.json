@@ -11,7 +11,8 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "minigames:fetch-players": "npx -y node@20 scripts/fetch-hangman-nba-players.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.0",
