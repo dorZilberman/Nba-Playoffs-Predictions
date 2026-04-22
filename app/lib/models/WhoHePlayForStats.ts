@@ -2,12 +2,15 @@ import mongoose, { Schema, Model, Types } from "mongoose"
 
 export interface IWhoHePlayForStats {
   userId: Types.ObjectId
-  /** Consecutive correct answers (resets on a miss). */
   currentStreak: number
-  /** Highest streak ever for this user. */
   bestStreak: number
-  /** Active round: player id from roster JSON until answered. */
   pendingPlayerId: string | null
+  /** True until the user presses Start / after loss or give up (lobby screen). */
+  inLobby: boolean
+  /** After a correct guess until Next player advances. */
+  pendingResolved: boolean
+  /** Wall-clock end of the current guess window (playing only). */
+  roundDeadlineAt: Date | null
   updatedAt: Date
 }
 
@@ -34,6 +37,20 @@ const WhoHePlayForStatsSchema = new Schema<IWhoHePlayForStats>(
     },
     pendingPlayerId: {
       type: String,
+      default: null,
+    },
+    inLobby: {
+      type: Boolean,
+      required: true,
+      default: true,
+    },
+    pendingResolved: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
+    roundDeadlineAt: {
+      type: Date,
       default: null,
     },
   },

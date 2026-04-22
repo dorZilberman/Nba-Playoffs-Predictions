@@ -4,14 +4,24 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Switch } from "@/components/ui/switch"
+import { Tooltip } from "@/components/ui/tooltip"
+import { Info } from "lucide-react"
 import type { HangmanPlayer, HangmanPlayerBundle } from "@/app/lib/minigames/types"
 import type { BestStreakLeaderboardRow } from "@/app/lib/minigames/bestStreakLeaderboard"
 import { BestStreakLeaderboardCard } from "@/components/minigames/BestStreakLeaderboardCard"
 import { cn } from "@/app/lib/utils/cn"
 
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")
-/** Body parts after the gallows: head, body, arms, legs, eyes — game ends on this many wrong letters. */
 const MAX_WRONG = 7
+
+type PersistedRound = {
+  playerId: string
+  guessedLetters: string[]
+  wrong: number
+  hintsUsed: number
+  status: "playing" | "won" | "lost"
+}
 
 function requiredLetters(name: string): Set<string> {
   const s = new Set<string>()
@@ -19,11 +29,6 @@ function requiredLetters(name: string): Set<string> {
     if (ch >= "A" && ch <= "Z") s.add(ch)
   }
   return s
-}
-
-function pickRandom(players: HangmanPlayer[]): HangmanPlayer {
-  const i = Math.floor(Math.random() * players.length)
-  return players[i]
 }
 
 function HangmanFigure({ stage }: { stage: number }) {
@@ -34,7 +39,6 @@ function HangmanFigure({ stage }: { stage: number }) {
       className="mx-auto h-auto max-h-[min(160px,28vh)] w-full max-w-[min(200px,45vw)] text-foreground sm:max-h-none sm:max-w-[200px]"
       aria-hidden
     >
-      {/* gallows (always) */}
       <line x1="10" y1="130" x2="90" y2="130" stroke="currentColor" strokeWidth="3" />
       <line x1="50" y1="130" x2="50" y2="20" stroke="currentColor" strokeWidth="3" />
       <line x1="50" y1="20" x2="95" y2="20" stroke="currentColor" strokeWidth="3" />
@@ -58,7 +62,6 @@ function HangmanFigure({ stage }: { stage: number }) {
 }
 
 type HangmanGameProps = {
-  /** When false, omit the card title (e.g. page already has an h1). */
   showTitle?: boolean
 }
 
@@ -68,6 +71,7 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
 
   const [bundle, setBundle] = useState<HangmanPlayerBundle | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [inLobby, setInLobby] = useState(true)
   const [current, setCurrent] = useState<HangmanPlayer | null>(null)
   const [guessed, setGuessed] = useState<Set<string>>(() => new Set())
   const [wrong, setWrong] = useState(0)
@@ -79,26 +83,21 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
   const [lbRows, setLbRows] = useState<BestStreakLeaderboardRow[]>([])
   const [lbLoading, setLbLoading] = useState(true)
 
-  /** Per-round id so we only report win/loss once (Strict Mode–safe). */
+  const [autoMode, setAutoMode] = useState(false)
+  const [autoSecondsLeft, setAutoSecondsLeft] = useState<number | null>(null)
+  const [lobbyNote, setLobbyNote] = useState<string | null>(null)
+
   const roundSeqRef = useRef(0)
   const reportedSeqRef = useRef<number | null>(null)
+  const saveDebounceRef = useRef<number | null>(null)
+  const lastSavedSigRef = useRef<string>("")
+  const autoTimerRef = useRef<number | null>(null)
+  const streakRef = useRef(0)
+  const lossHandledRef = useRef(false)
 
-  const loadStreak = useCallback(async () => {
-    try {
-      const res = await fetch("/api/minigames/hangman/streak", {
-        cache: "no-store",
-      })
-      if (!res.ok) return
-      const d = (await res.json()) as {
-        currentStreak?: number
-        bestStreak?: number
-      }
-      setStreakCurrent(d.currentStreak ?? 0)
-      setStreakBest(d.bestStreak ?? 0)
-    } catch {
-      /* ignore */
-    }
-  }, [])
+  useEffect(() => {
+    streakRef.current = streakCurrent
+  }, [streakCurrent])
 
   const loadLeaderboard = useCallback(async () => {
     try {
@@ -114,12 +113,231 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
   }, [])
 
   useEffect(() => {
-    loadStreak()
-  }, [loadStreak])
-
-  useEffect(() => {
     loadLeaderboard()
   }, [loadLeaderboard])
+
+  const applyPersistedRound = useCallback(
+    (
+      playerId: string,
+      r: Omit<PersistedRound, "playerId">,
+      players: HangmanPlayer[]
+    ) => {
+      const p = players.find((x) => x.id === playerId)
+      if (!p) return false
+      setCurrent(p)
+      setGuessed(new Set(r.guessedLetters))
+      setWrong(r.wrong)
+      setHintsUsed(r.hintsUsed)
+      setStatus(r.status)
+      return true
+    },
+    []
+  )
+
+  const hydrateFromServer = useCallback(
+    async (
+      players: HangmanPlayer[],
+      payload: {
+        inLobby: boolean
+        currentStreak: number
+        bestStreak: number
+        round: PersistedRound | null
+      }
+    ) => {
+      setStreakCurrent(payload.currentStreak)
+      setStreakBest(payload.bestStreak)
+
+      if (payload.round?.status === "lost") {
+        const p = players.find((x) => x.id === payload.round!.playerId)
+        const answer = p?.displayName ?? "the player"
+        setLobbyNote(`Round lost. Answer: ${answer}`)
+        setInLobby(true)
+        setCurrent(null)
+        setGuessed(new Set())
+        setWrong(0)
+        setHintsUsed(0)
+        setStatus("playing")
+        void fetch("/api/minigames/hangman/to-lobby", { method: "POST" })
+        return
+      }
+
+      /** No round payload ⇒ lobby. Don’t trust `inLobby` alone (DB can be inconsistent). */
+      if (!payload.round) {
+        setInLobby(true)
+        setCurrent(null)
+        setGuessed(new Set())
+        setWrong(0)
+        setHintsUsed(0)
+        setStatus("playing")
+        return
+      }
+
+      setInLobby(payload.inLobby)
+
+      if (payload.inLobby) {
+        setCurrent(null)
+        setGuessed(new Set())
+        setWrong(0)
+        setHintsUsed(0)
+        setStatus("playing")
+        return
+      }
+
+      const ok = applyPersistedRound(
+        payload.round.playerId,
+        payload.round,
+        players
+      )
+      if (!ok) {
+        setInLobby(true)
+        setCurrent(null)
+        setGuessed(new Set())
+        setWrong(0)
+        setHintsUsed(0)
+        setStatus("playing")
+        setLobbyNote(
+          "Could not restore the last round (player list may have changed). Start New Game."
+        )
+      }
+    },
+    [applyPersistedRound]
+  )
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const [pres, sres] = await Promise.all([
+          fetch("/api/minigames/hangman/players", { cache: "no-store" }),
+          fetch("/api/minigames/hangman/round-state", { cache: "no-store" }),
+        ])
+        if (!pres.ok) {
+          if (!cancelled) setLoadError("Could not load players.")
+          return
+        }
+        const data = (await pres.json()) as HangmanPlayerBundle
+        if (!sres.ok) {
+          if (!cancelled) setLoadError("Could not load saved game.")
+          return
+        }
+        const sessionJson = (await sres.json()) as {
+          inLobby: boolean
+          currentStreak: number
+          bestStreak: number
+          round: PersistedRound | null
+        }
+        if (cancelled) return
+        setBundle(data)
+        await hydrateFromServer(data.players, sessionJson)
+      } catch {
+        if (!cancelled) setLoadError("Could not load Hangman.")
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [hydrateFromServer])
+
+  const persistState = useCallback(async () => {
+    if (inLobby || !current) return
+    const sig = JSON.stringify({
+      playerId: current.id,
+      guessed: Array.from(guessed).sort(),
+      wrong,
+      hintsUsed,
+      status,
+    })
+    if (sig === lastSavedSigRef.current) return
+    lastSavedSigRef.current = sig
+
+    if (saveDebounceRef.current) window.clearTimeout(saveDebounceRef.current)
+    saveDebounceRef.current = window.setTimeout(() => {
+      void fetch("/api/minigames/hangman/state", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          playerId: current.id,
+          guessedLetters: Array.from(guessed),
+          wrong,
+          hintsUsed,
+          status,
+        }),
+      })
+    }, 250)
+  }, [inLobby, current, guessed, wrong, hintsUsed, status])
+
+  useEffect(() => {
+    return () => {
+      if (saveDebounceRef.current) window.clearTimeout(saveDebounceRef.current)
+    }
+  }, [])
+
+  useEffect(() => {
+    void persistState()
+  }, [persistState])
+
+  useEffect(() => {
+    if (wrong < MAX_WRONG || status !== "playing" || inLobby || !current) return
+    setStatus("lost")
+  }, [wrong, status, inLobby, current])
+
+  const flushSave = useCallback(() => {
+    if (saveDebounceRef.current) {
+      window.clearTimeout(saveDebounceRef.current)
+      saveDebounceRef.current = null
+    }
+    if (inLobby || !current) return
+    lastSavedSigRef.current = ""
+    void fetch("/api/minigames/hangman/state", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        playerId: current.id,
+        guessedLetters: Array.from(guessed),
+        wrong,
+        hintsUsed,
+        status,
+      }),
+    })
+  }, [inLobby, current, guessed, wrong, hintsUsed, status])
+
+  /** Move to lobby immediately after a loss so “Start New Game” is visible without waiting on network. */
+  useEffect(() => {
+    if (status !== "lost") {
+      lossHandledRef.current = false
+      return
+    }
+    if (lossHandledRef.current) return
+
+    lossHandledRef.current = true
+
+    if (!current) {
+      setLobbyNote((prev) => prev ?? "Round lost.")
+      setInLobby(true)
+      setGuessed(new Set())
+      setWrong(0)
+      setHintsUsed(0)
+      setStatus("playing")
+      void fetch("/api/minigames/hangman/to-lobby", { method: "POST" })
+      return
+    }
+
+    flushSave()
+
+    const ended = streakRef.current
+    const answer = current.displayName
+    setLobbyNote(
+      ended > 0
+        ? `Round lost. Your streak was ${ended}. Answer: ${answer}`
+        : `Round lost. Answer: ${answer}`
+    )
+    setInLobby(true)
+    setCurrent(null)
+    setGuessed(new Set())
+    setWrong(0)
+    setHintsUsed(0)
+    setStatus("playing")
+  }, [status, current, flushSave])
 
   useEffect(() => {
     if (status !== "won" && status !== "lost") return
@@ -143,33 +361,122 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
         setStreakCurrent(d.currentStreak)
         setStreakBest(d.bestStreak)
         loadLeaderboard()
+
+        if (outcome === "lost") {
+          await fetch("/api/minigames/hangman/to-lobby", { method: "POST" })
+          const sres = await fetch("/api/minigames/hangman/round-state", {
+            cache: "no-store",
+          })
+          if (sres.ok) {
+            const sj = (await sres.json()) as {
+              inLobby: boolean
+              currentStreak: number
+              bestStreak: number
+              round: PersistedRound | null
+            }
+            if (bundle) {
+              await hydrateFromServer(bundle.players, sj)
+            }
+          }
+        }
       } catch {
         /* ignore */
       }
     })()
-  }, [status, loadLeaderboard])
+  }, [status, loadLeaderboard, bundle, hydrateFromServer])
+
+  const advanceAfterWin = useCallback(async () => {
+    const res = await fetch("/api/minigames/hangman/next", { method: "POST" })
+    if (!res.ok) return
+    const row = (await res.json()) as PersistedRound
+    if (!bundle) return
+    roundSeqRef.current += 1
+    reportedSeqRef.current = null
+    applyPersistedRound(row.playerId, row, bundle.players)
+  }, [bundle, applyPersistedRound])
 
   useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const res = await fetch("/api/minigames/hangman/players", { cache: "no-store" })
-        if (!res.ok) {
-          if (!cancelled) setLoadError("Could not load players.")
-          return
-        }
-        const data = (await res.json()) as HangmanPlayerBundle
-        if (cancelled) return
-        setBundle(data)
-        setCurrent(pickRandom(data.players))
-      } catch {
-        if (!cancelled) setLoadError("Could not load players.")
-      }
-    })()
-    return () => {
-      cancelled = true
+    if (autoTimerRef.current) {
+      window.clearInterval(autoTimerRef.current)
+      autoTimerRef.current = null
     }
-  }, [])
+    setAutoSecondsLeft(null)
+
+    if (!autoMode || status !== "won" || inLobby || !current) return
+
+    let left = 3
+    setAutoSecondsLeft(left)
+    autoTimerRef.current = window.setInterval(() => {
+      left -= 1
+      setAutoSecondsLeft(left)
+      if (left <= 0) {
+        if (autoTimerRef.current) window.clearInterval(autoTimerRef.current)
+        autoTimerRef.current = null
+        setAutoSecondsLeft(null)
+        void advanceAfterWin()
+      }
+    }, 1000)
+
+    return () => {
+      if (autoTimerRef.current) window.clearInterval(autoTimerRef.current)
+      autoTimerRef.current = null
+    }
+  }, [autoMode, status, inLobby, current, advanceAfterWin])
+
+  const startNewGame = useCallback(async () => {
+    setLobbyNote(null)
+    const res = await fetch("/api/minigames/hangman/start", { method: "POST" })
+    if (!res.ok) return
+    const row = (await res.json()) as PersistedRound
+    if (!bundle) return
+    roundSeqRef.current += 1
+    reportedSeqRef.current = null
+    setInLobby(false)
+    applyPersistedRound(row.playerId, row, bundle.players)
+  }, [bundle, applyPersistedRound])
+
+  const nextPlayer = useCallback(async () => {
+    if (status !== "won") return
+    if (autoTimerRef.current) {
+      window.clearInterval(autoTimerRef.current)
+      autoTimerRef.current = null
+    }
+    setAutoSecondsLeft(null)
+    await advanceAfterWin()
+  }, [status, advanceAfterWin])
+
+  const giveUp = useCallback(async () => {
+    if (status !== "playing" || inLobby || !current) return
+    const res = await fetch("/api/minigames/hangman/give-up", { method: "POST" })
+    if (!res.ok) return
+    const d = (await res.json()) as {
+      streakEnded: number
+      currentStreak: number
+      bestStreak: number
+    }
+    setStreakCurrent(d.currentStreak)
+    setStreakBest(d.bestStreak)
+    loadLeaderboard()
+    setLobbyNote(
+      d.streakEnded > 0
+        ? `You gave up. Your streak was ${d.streakEnded}.`
+        : "You gave up."
+    )
+    roundSeqRef.current += 1
+    reportedSeqRef.current = null
+    const sres = await fetch("/api/minigames/hangman/round-state", {
+      cache: "no-store",
+    })
+    if (sres.ok && bundle) {
+      const sj = (await sres.json()) as {
+        inLobby: boolean
+        currentStreak: number
+        bestStreak: number
+        round: PersistedRound | null
+      }
+      await hydrateFromServer(bundle.players, sj)
+    }
+  }, [status, inLobby, current, loadLeaderboard, bundle, hydrateFromServer])
 
   const needed = useMemo(
     () => (current ? requiredLetters(current.displayName) : new Set<string>()),
@@ -189,36 +496,19 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
     if (all) setStatus("won")
   }, [current, guessed, needed, status])
 
-  const newRound = useCallback(() => {
-    if (!bundle?.players.length) return
-    roundSeqRef.current += 1
-    reportedSeqRef.current = null
-    setCurrent(pickRandom(bundle.players))
-    setGuessed(new Set())
-    setWrong(0)
-    setHintsUsed(0)
-    setStatus("playing")
-  }, [bundle])
-
   const onLetter = useCallback(
     (letter: string) => {
-      if (status !== "playing" || !current) return
+      if (status !== "playing" || !current || inLobby) return
       const L = letter.toUpperCase()
       if (guessed.has(L)) return
       const next = new Set(guessed)
       next.add(L)
       setGuessed(next)
       if (!needed.has(L)) {
-        setWrong((w) => {
-          const nw = w + 1
-          if (nw >= MAX_WRONG) {
-            setStatus("lost")
-          }
-          return nw
-        })
+        setWrong((w) => w + 1)
       }
     },
-    [current, guessed, needed, status]
+    [current, guessed, needed, status, inLobby]
   )
 
   if (loadError) {
@@ -229,186 +519,272 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
     )
   }
 
-  if (!bundle || !current) {
+  if (!bundle) {
     return (
       <p className="text-sm text-muted-foreground py-8 text-center">Loading Hangman…</p>
     )
   }
 
-  const hintLines = [
-    hintsUsed >= 1 ? `Conference: ${current.conference}` : null,
-    hintsUsed >= 2 ? `Team: ${current.team}` : null,
-    hintsUsed >= 3 ? `Position: ${current.position}` : null,
-  ].filter(Boolean) as string[]
+  const hintLines =
+    current && !inLobby
+      ? ([
+          hintsUsed >= 1 ? `Conference: ${current.conference}` : null,
+          hintsUsed >= 2 ? `Team: ${current.team}` : null,
+          hintsUsed >= 3 ? `Position: ${current.position}` : null,
+        ].filter(Boolean) as string[])
+      : []
+
+  const showPlayfield = !inLobby && current
 
   return (
     <div className="space-y-8">
-    <Card
-      className="overflow-x-clip"
-      aria-label={showTitle ? undefined : "Hangman — guess the NBA player"}
-    >
-      {showTitle ? (
-        <CardHeader className="space-y-1 px-3 pt-4 sm:px-6 sm:pt-6">
-          <CardTitle className="text-lg sm:text-xl">
-            Hangman — guess the NBA player
-          </CardTitle>
-          <CardDescription className="text-xs sm:text-sm">
-            {bundle.seasonLabel} season roster · {bundle.players.length} players ·
-            Wrong guesses: {wrong} / {MAX_WRONG}
-          </CardDescription>
-        </CardHeader>
-      ) : null}
-      <CardContent
-        className={cn(
-          "space-y-4 px-3 pb-4 sm:space-y-6 sm:px-6 sm:pb-6",
-          showTitle ? "pt-0" : "pt-4 sm:pt-6"
-        )}
+      <Card
+        className="overflow-x-clip"
+        aria-label={showTitle ? undefined : "Hangman — guess the NBA player"}
       >
-        {!showTitle && (
-          <p className="text-xs text-muted-foreground sm:text-sm" aria-live="polite">
-            {bundle.seasonLabel} · {bundle.players.length} players · Wrong: {wrong} /{" "}
-            {MAX_WRONG}
-          </p>
-        )}
-
-        <div className="flex flex-wrap gap-4 text-sm">
-          <div>
-            <span className="text-muted-foreground">Current streak</span>
-            <p className="text-2xl font-semibold tabular-nums">{streakCurrent}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Best streak</span>
-            <p className="text-2xl font-semibold tabular-nums">{streakBest}</p>
-          </div>
-        </div>
-
-        <div className="grid gap-4 sm:gap-6 md:grid-cols-2 md:items-start">
-          <div className="flex shrink-0 justify-center md:justify-start">
-            <HangmanFigure stage={wrong} />
-          </div>
-          <div className="min-w-0 space-y-2 sm:space-y-3">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Name
+        {showTitle ? (
+          <CardHeader className="space-y-1 px-3 pt-4 sm:px-6 sm:pt-6">
+            <CardTitle className="text-lg sm:text-xl">
+              Hangman — guess the NBA player
+            </CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              {bundle.seasonLabel} season roster · {bundle.players.length} players ·
+              Wrong guesses: {wrong} / {MAX_WRONG}
+            </CardDescription>
+          </CardHeader>
+        ) : null}
+        <CardContent
+          className={cn(
+            "space-y-4 px-3 pb-4 sm:space-y-6 sm:px-6 sm:pb-6",
+            showTitle ? "pt-0" : "pt-4 sm:pt-6"
+          )}
+        >
+          {!showTitle && (
+            <p className="text-xs text-muted-foreground sm:text-sm" aria-live="polite">
+              {bundle.seasonLabel} · {bundle.players.length} players · Wrong: {wrong} /{" "}
+              {MAX_WRONG}
             </p>
-            <div
-              className="-mx-1 flex min-h-[2rem] max-w-full flex-wrap gap-x-4 gap-y-2 px-1 text-base font-semibold tracking-wide [overflow-wrap:anywhere] sm:min-h-[2.5rem] sm:gap-x-8 sm:gap-y-3 sm:text-xl md:gap-x-12 md:text-2xl"
-              aria-live="polite"
-            >
-              {current.displayName.split(" ").map((word, wi) => (
-                <span key={wi} className="flex gap-1 shrink-0">
-                  {[...word].map((ch, ci) => {
-                    const u = ch.toUpperCase()
-                    const isLetter = ch >= "A" && ch <= "Z" || ch >= "a" && ch <= "z"
-                    if (!isLetter) {
-                      return (
-                        <span key={ci} className="text-muted-foreground">
-                          {ch}
-                        </span>
-                      )
-                    }
-                    const show = guessed.has(u) || status === "lost" || status === "won"
-                    return (
-                      <span
-                        key={ci}
-                        className={cn(
-                          "inline-flex min-w-[0.75em] justify-center border-b-2 border-muted-foreground/40 pb-0.5",
-                          show && "border-transparent"
-                        )}
-                      >
-                        {show ? ch : "—"}
-                      </span>
-                    )
-                  })}
-                </span>
-              ))}
+          )}
+
+          <div className="flex flex-wrap gap-4 text-sm">
+            <div>
+              <span className="text-muted-foreground">Current streak</span>
+              <p className="text-2xl font-semibold tabular-nums">{streakCurrent}</p>
             </div>
-            {status === "lost" && (
+            <div>
+              <span className="text-muted-foreground">Best streak</span>
+              <p className="text-2xl font-semibold tabular-nums">{streakBest}</p>
+            </div>
+          </div>
+
+          {inLobby && (
+            <div className="space-y-4 rounded-lg border bg-muted/30 px-4 py-6 text-center">
               <p className="text-sm text-muted-foreground">
-                Answer: <span className="font-medium text-foreground">{current.displayName}</span>
+                Win rounds without running out of wrong guesses. Wrong picks and losses reset
+                your streak.
               </p>
-            )}
-            {status === "won" && (
-              <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">You got it!</p>
-            )}
-          </div>
-        </div>
-
-        {hintLines.length > 0 && (
-          <div className="rounded-md border bg-muted/40 px-2.5 py-2 text-xs sm:px-3 sm:text-sm space-y-1">
-            {hintLines.map((line, i) => (
-              <p key={i} className="break-words">
-                {line}
-              </p>
-            ))}
-          </div>
-        )}
-
-        <div className="flex min-w-0 gap-1.5 sm:flex-wrap sm:gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-auto min-h-[2.75rem] min-w-0 flex-1 basis-0 whitespace-normal px-1.5 py-1.5 text-center text-[10px] leading-snug sm:h-9 sm:min-h-9 sm:min-w-0 sm:flex-none sm:px-3 sm:text-sm"
-            disabled={hintsUsed !== 0 || status !== "playing"}
-            onClick={() => setHintsUsed(1)}
-          >
-            Hint 1 — conference
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-auto min-h-[2.75rem] min-w-0 flex-1 basis-0 whitespace-normal px-1.5 py-1.5 text-center text-[10px] leading-snug sm:h-9 sm:min-h-9 sm:min-w-0 sm:flex-none sm:px-3 sm:text-sm"
-            disabled={hintsUsed !== 1 || status !== "playing"}
-            onClick={() => setHintsUsed(2)}
-          >
-            Hint 2 — team
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-auto min-h-[2.75rem] min-w-0 flex-1 basis-0 whitespace-normal px-1.5 py-1.5 text-center text-[10px] leading-snug sm:h-9 sm:min-h-9 sm:min-w-0 sm:flex-none sm:px-3 sm:text-sm"
-            disabled={hintsUsed !== 2 || status !== "playing"}
-            onClick={() => setHintsUsed(3)}
-          >
-            Hint 3 — position
-          </Button>
-        </div>
-
-        <div className="mx-auto grid w-full max-w-xl grid-cols-9 gap-1 sm:gap-1.5 md:gap-2">
-          {LETTERS.map((L) => {
-            const used = guessed.has(L)
-            return (
-              <Button
-                key={L}
-                type="button"
-                variant={used ? "secondary" : "outline"}
-                size="sm"
-                className="aspect-square h-auto min-h-8 w-full touch-manipulation p-0 font-mono text-[11px] sm:min-h-9 sm:text-xs md:min-h-10 md:text-sm"
-                disabled={used || status !== "playing"}
-                onClick={() => onLetter(L)}
-              >
-                {L}
+              {lobbyNote && (
+                <p className="text-sm font-medium text-foreground" role="status">
+                  {lobbyNote}
+                </p>
+              )}
+              <Button type="button" className="min-h-11 w-full max-w-sm mx-auto" onClick={() => void startNewGame()}>
+                Start New Game
               </Button>
-            )
-          })}
-        </div>
+            </div>
+          )}
 
-        <div className="flex flex-wrap justify-center gap-2">
-          <Button type="button" className="min-h-10 w-full max-w-xs sm:w-auto" onClick={newRound}>
-            New player
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+          {showPlayfield && (
+            <>
+              <div className="grid gap-4 sm:gap-6 md:grid-cols-2 md:items-start">
+                <div className="flex shrink-0 justify-center md:justify-start">
+                  <HangmanFigure stage={wrong} />
+                </div>
+                <div className="min-w-0 space-y-2 sm:space-y-3">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Name
+                  </p>
+                  <div
+                    className="-mx-1 flex min-h-[2rem] max-w-full flex-wrap gap-x-4 gap-y-2 px-1 text-base font-semibold tracking-wide [overflow-wrap:anywhere] sm:min-h-[2.5rem] sm:gap-x-8 sm:gap-y-3 sm:text-xl md:gap-x-12 md:text-2xl"
+                    aria-live="polite"
+                  >
+                    {current.displayName.split(" ").map((word, wi) => (
+                      <span key={wi} className="flex gap-1 shrink-0">
+                        {[...word].map((ch, ci) => {
+                          const u = ch.toUpperCase()
+                          const isLetter =
+                            (ch >= "A" && ch <= "Z") || (ch >= "a" && ch <= "z")
+                          if (!isLetter) {
+                            return (
+                              <span key={ci} className="text-muted-foreground">
+                                {ch}
+                              </span>
+                            )
+                          }
+                          const show =
+                            guessed.has(u) || status === "lost" || status === "won"
+                          return (
+                            <span
+                              key={ci}
+                              className={cn(
+                                "inline-flex min-w-[0.75em] justify-center border-b-2 border-muted-foreground/40 pb-0.5",
+                                show && "border-transparent"
+                              )}
+                            >
+                              {show ? ch : "—"}
+                            </span>
+                          )
+                        })}
+                      </span>
+                    ))}
+                  </div>
+                  {status === "lost" && (
+                    <p className="text-sm text-muted-foreground">
+                      Answer:{" "}
+                      <span className="font-medium text-foreground">{current.displayName}</span>
+                    </p>
+                  )}
+                  {status === "won" && (
+                    <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                      You got it!
+                    </p>
+                  )}
+                </div>
+              </div>
 
-    <BestStreakLeaderboardCard
-      description="Win consecutive rounds without losing (running out of wrong guesses). One row per player, ranked by best streak."
-      rows={lbRows}
-      loading={lbLoading}
-      myUserId={myId}
-    />
+              {hintLines.length > 0 && (
+                <div className="rounded-md border bg-muted/40 px-2.5 py-2 text-xs sm:px-3 sm:text-sm space-y-1">
+                  {hintLines.map((line, i) => (
+                    <p key={i} className="break-words">
+                      {line}
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex min-w-0 gap-1.5 sm:flex-wrap sm:gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-auto min-h-[2.75rem] min-w-0 flex-1 basis-0 whitespace-normal px-1.5 py-1.5 text-center text-[10px] leading-snug sm:h-9 sm:min-h-9 sm:min-w-0 sm:flex-none sm:px-3 sm:text-sm"
+                  disabled={hintsUsed !== 0 || status !== "playing"}
+                  onClick={() => setHintsUsed(1)}
+                >
+                  Hint 1 — conference
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-auto min-h-[2.75rem] min-w-0 flex-1 basis-0 whitespace-normal px-1.5 py-1.5 text-center text-[10px] leading-snug sm:h-9 sm:min-h-9 sm:min-w-0 sm:flex-none sm:px-3 sm:text-sm"
+                  disabled={hintsUsed !== 1 || status !== "playing"}
+                  onClick={() => setHintsUsed(2)}
+                >
+                  Hint 2 — team
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-auto min-h-[2.75rem] min-w-0 flex-1 basis-0 whitespace-normal px-1.5 py-1.5 text-center text-[10px] leading-snug sm:h-9 sm:min-h-9 sm:min-w-0 sm:flex-none sm:px-3 sm:text-sm"
+                  disabled={hintsUsed !== 2 || status !== "playing"}
+                  onClick={() => setHintsUsed(3)}
+                >
+                  Hint 3 — position
+                </Button>
+              </div>
+
+              <div className="mx-auto grid w-full max-w-xl grid-cols-9 gap-1 sm:gap-1.5 md:gap-2">
+                {LETTERS.map((L) => {
+                  const used = guessed.has(L)
+                  return (
+                    <Button
+                      key={L}
+                      type="button"
+                      variant={used ? "secondary" : "outline"}
+                      size="sm"
+                      className="aspect-square h-auto min-h-8 w-full touch-manipulation p-0 font-mono text-[11px] sm:min-h-9 sm:text-xs md:min-h-10 md:text-sm"
+                      disabled={used || status !== "playing"}
+                      onClick={() => onLetter(L)}
+                    >
+                      {L}
+                    </Button>
+                  )
+                })}
+              </div>
+
+              <div className="flex flex-col items-center gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
+                <Button
+                  type="button"
+                  className="min-h-10 w-full max-w-xs sm:w-auto"
+                  disabled={status !== "won"}
+                  onClick={() => void nextPlayer()}
+                >
+                  Next player
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-10 w-full max-w-xs sm:w-auto"
+                  disabled={status !== "playing"}
+                  onClick={() => void giveUp()}
+                >
+                  Give up
+                </Button>
+                <div className="flex w-full max-w-xs flex-row items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5 sm:w-auto sm:min-w-[17rem]">
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <label
+                      htmlFor="hangman-auto-mode"
+                      className="cursor-pointer text-sm font-medium leading-none text-foreground"
+                    >
+                      Auto Mode
+                    </label>
+                    <Tooltip
+                      content={
+                        <p className="text-left leading-snug">
+                          When Auto Mode is on, winning a round starts a short
+                          countdown and then loads the next player for you—you
+                          don&apos;t need to press{" "}
+                          <span className="font-medium">Next player</span>.
+                          Turn it off if you prefer to advance manually after
+                          each win.
+                        </p>
+                      }
+                    >
+                      <button
+                        type="button"
+                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        aria-label="What does Auto Mode do?"
+                      >
+                        <Info className="h-4 w-4" aria-hidden />
+                      </button>
+                    </Tooltip>
+                  </div>
+                  <Switch
+                    id="hangman-auto-mode"
+                    checked={autoMode}
+                    onCheckedChange={setAutoMode}
+                  />
+                </div>
+              </div>
+
+              {status === "won" && autoMode && autoSecondsLeft !== null && autoSecondsLeft > 0 && (
+                <p className="text-center text-sm text-muted-foreground tabular-nums" aria-live="polite">
+                  Next player in {autoSecondsLeft}…
+                </p>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <BestStreakLeaderboardCard
+        description="Win consecutive rounds without losing (running out of wrong guesses). One row per player, ranked by best streak."
+        rows={lbRows}
+        loading={lbLoading}
+        myUserId={myId}
+      />
     </div>
   )
 }

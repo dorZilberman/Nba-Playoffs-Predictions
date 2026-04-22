@@ -1,5 +1,9 @@
 import type { HangmanPlayer, HangmanPlayerBundle } from "@/app/lib/minigames/types"
 
+/** Per-player guessing window (Who He Play For). */
+export const WHO_HE_ROUND_SECONDS = 30
+export const WHO_HE_ROUND_MS = WHO_HE_ROUND_SECONDS * 1000
+
 export function findPlayerById(
   bundle: HangmanPlayerBundle,
   id: string
