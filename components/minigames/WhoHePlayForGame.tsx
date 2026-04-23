@@ -333,6 +333,13 @@ export function WhoHePlayForGame() {
     if (!scrollPlayingRoundAfterAdvanceRef.current) return
     if (phase !== "playing" || !player) return
     scrollPlayingRoundAfterAdvanceRef.current = false
+
+    /** Same breakpoint as Tailwind `sm:` — scroll only on narrow / mobile viewports */
+    const isMobile =
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 639px)").matches
+    if (!isMobile) return
+
     const id = window.requestAnimationFrame(() => {
       playingRoundAnchorRef.current?.scrollIntoView({
         behavior: "smooth",
@@ -507,51 +514,52 @@ export function WhoHePlayForGame() {
             give-ups reset your streak and return here.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6 px-4 sm:px-6">
-          <div className="flex flex-wrap gap-4 text-sm">
-            <div>
-              <span className="text-muted-foreground">Current streak</span>
-              <p className="text-2xl font-semibold tabular-nums">{currentStreak}</p>
+        <CardContent className="px-4 sm:px-6">
+          <div
+            ref={playingRoundAnchorRef}
+            className="scroll-mt-8 space-y-6 sm:scroll-mt-10"
+          >
+            <div className="flex flex-wrap gap-4 text-sm">
+              <div>
+                <span className="text-muted-foreground">Current streak</span>
+                <p className="text-2xl font-semibold tabular-nums">{currentStreak}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Best streak</span>
+                <p className="text-2xl font-semibold tabular-nums">{bestStreak}</p>
+              </div>
             </div>
-            <div>
-              <span className="text-muted-foreground">Best streak</span>
-              <p className="text-2xl font-semibold tabular-nums">{bestStreak}</p>
-            </div>
-          </div>
 
-          {error && (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
-            </p>
-          )}
+            {error && (
+              <p className="text-sm text-destructive" role="alert">
+                {error}
+              </p>
+            )}
 
-          {loading && phase === "lobby" && !lobbyNote && (
-            <p className="text-sm text-muted-foreground">Loading…</p>
-          )}
+            {loading && phase === "lobby" && !lobbyNote && (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            )}
 
-          {phase === "lobby" && (
-            <div className="space-y-4 rounded-lg border bg-muted/30 px-4 py-6 text-center">
-              {lobbyNote && (
-                <p className="text-sm font-medium text-foreground text-balance">
-                  {lobbyNote}
-                </p>
-              )}
-              <Button
-                type="button"
-                className="min-h-11 w-full max-w-sm mx-auto"
-                disabled={submitting}
-                onClick={() => void startNewGame()}
-              >
-                {submitting ? "Starting…" : "Start New Game"}
-              </Button>
-            </div>
-          )}
+            {phase === "lobby" && (
+              <div className="space-y-4 rounded-lg border bg-muted/30 px-4 py-6 text-center">
+                {lobbyNote && (
+                  <p className="text-sm font-medium text-foreground text-balance">
+                    {lobbyNote}
+                  </p>
+                )}
+                <Button
+                  type="button"
+                  className="min-h-11 w-full max-w-sm mx-auto"
+                  disabled={submitting}
+                  onClick={() => void startNewGame()}
+                >
+                  {submitting ? "Starting…" : "Start New Game"}
+                </Button>
+              </div>
+            )}
 
-          {phase === "playing" && player && remainingForUi !== null && (
-            <div
-              ref={playingRoundAnchorRef}
-              className="scroll-mt-6 space-y-4 sm:scroll-mt-8"
-            >
+            {phase === "playing" && player && remainingForUi !== null && (
+              <div className="space-y-4">
               <div className="rounded-lg border-2 border-primary/25 bg-muted/30 px-4 py-3 space-y-3 shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-foreground">
@@ -636,7 +644,8 @@ export function WhoHePlayForGame() {
                 </Button>
               </div>
             </div>
-          )}
+            )}
+          </div>
         </CardContent>
       </Card>
 
