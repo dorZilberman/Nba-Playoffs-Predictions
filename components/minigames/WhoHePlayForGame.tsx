@@ -112,6 +112,9 @@ export function WhoHePlayForGame() {
   const deadlineRef = useRef<string | null>(null)
   const phaseRef = useRef(phase)
   const playerRef = useRef(player)
+  /** After a correct guess advances to the next player, scroll timer + name into view (mobile). */
+  const playingRoundAnchorRef = useRef<HTMLDivElement | null>(null)
+  const scrollPlayingRoundAfterAdvanceRef = useRef(false)
 
   const [lastMessage, setLastMessage] = useState<{
     type: "ok" | "bad"
@@ -326,6 +329,19 @@ export function WhoHePlayForGame() {
     loadLeaderboard()
   }, [loadLeaderboard])
 
+  useEffect(() => {
+    if (!scrollPlayingRoundAfterAdvanceRef.current) return
+    if (phase !== "playing" || !player) return
+    scrollPlayingRoundAfterAdvanceRef.current = false
+    const id = window.requestAnimationFrame(() => {
+      playingRoundAnchorRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      })
+    })
+    return () => window.cancelAnimationFrame(id)
+  }, [player?.id, phase])
+
   const startNewGame = async () => {
     setLobbyNote(null)
     setLastMessage(null)
@@ -395,6 +411,7 @@ export function WhoHePlayForGame() {
         loadLeaderboard()
         await syncRoundFromServer()
       } else if (data.correct && data.player) {
+        scrollPlayingRoundAfterAdvanceRef.current = true
         setPhase("playing")
         setPlayer(data.player)
         const nextIso = deadlineFieldToIso(data.roundDeadlineAt)
@@ -531,7 +548,10 @@ export function WhoHePlayForGame() {
           )}
 
           {phase === "playing" && player && remainingForUi !== null && (
-            <div className="space-y-4">
+            <div
+              ref={playingRoundAnchorRef}
+              className="scroll-mt-6 space-y-4 sm:scroll-mt-8"
+            >
               <div className="rounded-lg border-2 border-primary/25 bg-muted/30 px-4 py-3 space-y-3 shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-foreground">
