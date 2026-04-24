@@ -24,11 +24,24 @@ export async function GET(request: Request) {
       const docs = await WhoAmIStreakStats.find({
         bestStreak: { $gte: 1 },
       })
-        .sort({ bestStreak: -1, updatedAt: -1 })
-        .limit(200)
         .lean()
+        .exec()
 
-      const userIds = docs.map((d) => d.userId)
+      docs.sort((a, b) => {
+        if (b.bestStreak !== a.bestStreak) return b.bestStreak - a.bestStreak
+        const ha = a.minHintsForBestTie
+        const hb = b.minHintsForBestTie
+        const va = ha == null ? 1e15 : ha
+        const vb = hb == null ? 1e15 : hb
+        if (va !== vb) return va - vb
+        const ta = new Date(a.updatedAt).getTime()
+        const tb = new Date(b.updatedAt).getTime()
+        return tb - ta
+      })
+
+      const top = docs.slice(0, 200)
+
+      const userIds = top.map((d) => d.userId)
       const users = await User.find({ _id: { $in: userIds } })
         .select("name")
         .lean()
@@ -37,11 +50,12 @@ export async function GET(request: Request) {
         users.map((u) => [String(u._id), u.name as string])
       )
 
-      const rows: BestStreakLeaderboardRow[] = docs.map((d, i) => ({
+      const rows: BestStreakLeaderboardRow[] = top.map((d, i) => ({
         rank: i + 1,
         userId: String(d.userId),
         userName: nameById.get(String(d.userId)) ?? "Unknown",
         bestStreak: d.bestStreak,
+        hintsUsedTotal: d.minHintsForBestTie ?? 0,
       }))
 
       return NextResponse.json({ rows })

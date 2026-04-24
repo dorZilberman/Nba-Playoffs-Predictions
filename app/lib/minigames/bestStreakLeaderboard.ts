@@ -4,4 +4,6 @@ export type BestStreakLeaderboardRow = {
   userId: string
   userName: string
   bestStreak: number
+  /** Tie-break: minimum total hints in a run that achieved (or matched) that row’s best streak; lower ranks higher. */
+  hintsUsedTotal?: number
 }

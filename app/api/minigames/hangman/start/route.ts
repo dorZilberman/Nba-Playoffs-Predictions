@@ -3,6 +3,7 @@ import { auth } from "@/app/lib/auth"
 import { runApiRoute } from "@/app/lib/logging/runApiRoute"
 import dbConnect from "@/app/lib/db"
 import HangmanRoundState from "@/app/lib/models/HangmanRoundState"
+import HangmanStreakStats from "@/app/lib/models/HangmanStreakStats"
 import { userExistsInDb } from "@/app/lib/utils/userDbGate"
 import { pickRandomPlayer } from "@/app/lib/minigames/whoHePlayForGame"
 import bundleJson from "@/data/minigames/nba-players-2025-26.json"
@@ -49,19 +50,34 @@ export async function POST(request: Request) {
       }
 
       const player = pickRandomPlayer(bundle)
-      doc.inLobby = false
-      doc.playerId = player.id
-      doc.guessedLetters = []
-      doc.wrong = 0
-      doc.hintsUsed = 0
-      doc.status = "playing"
-      await doc.save()
+
+      await HangmanStreakStats.updateOne(
+        { userId },
+        { $set: { runHintsUsed: 0 } },
+        { upsert: false, runValidators: false }
+      )
+
+      await HangmanRoundState.findOneAndUpdate(
+        { userId },
+        {
+          $set: {
+            inLobby: false,
+            playerId: player.id,
+            guessedLetters: [],
+            wrong: 0,
+            hintMask: 0,
+            status: "playing",
+          },
+          $unset: { hintsUsed: "" },
+        },
+        { new: true, runValidators: true }
+      )
 
       return NextResponse.json({
         playerId: player.id,
         guessedLetters: [],
         wrong: 0,
-        hintsUsed: 0,
+        hintMask: 0,
         status: "playing" as const,
       })
     }

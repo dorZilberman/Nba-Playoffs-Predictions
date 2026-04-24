@@ -40,18 +40,26 @@ export async function POST(request: Request) {
       }
 
       const next = pickRandomPlayer(bundle, doc.playerId)
-      doc.playerId = next.id
-      doc.guessedLetters = []
-      doc.wrong = 0
-      doc.hintsUsed = 0
-      doc.status = "playing"
-      await doc.save()
+      await HangmanRoundState.findOneAndUpdate(
+        { userId },
+        {
+          $set: {
+            playerId: next.id,
+            guessedLetters: [],
+            wrong: 0,
+            hintMask: 0,
+            status: "playing",
+          },
+          $unset: { hintsUsed: "" },
+        },
+        { new: true, runValidators: true }
+      )
 
       return NextResponse.json({
         playerId: next.id,
         guessedLetters: [] as string[],
         wrong: 0,
-        hintsUsed: 0,
+        hintMask: 0,
         status: "playing" as const,
       })
     }

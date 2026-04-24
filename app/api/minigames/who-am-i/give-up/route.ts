@@ -54,7 +54,7 @@ export async function POST(request: Request) {
 
       await WhoAmIStreakStats.updateOne(
         { userId },
-        { $set: { currentStreak: 0 } },
+        { $set: { currentStreak: 0, runHintsUsed: 0 } },
         { runValidators: false }
       )
 

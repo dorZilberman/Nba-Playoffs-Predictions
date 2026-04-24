@@ -3,6 +3,7 @@ import { auth } from "@/app/lib/auth"
 import { runApiRoute } from "@/app/lib/logging/runApiRoute"
 import dbConnect from "@/app/lib/db"
 import WhoAmIRoundState from "@/app/lib/models/WhoAmIRoundState"
+import WhoAmIStreakStats from "@/app/lib/models/WhoAmIStreakStats"
 import { userExistsInDb } from "@/app/lib/utils/userDbGate"
 import { pickRandomPlayer } from "@/app/lib/minigames/whoHePlayForGame"
 import bundleJson from "@/data/minigames/nba-players-2025-26.json"
@@ -45,6 +46,13 @@ export async function POST(request: Request) {
       }
 
       const player = pickRandomPlayer(bundle)
+
+      await WhoAmIStreakStats.updateOne(
+        { userId },
+        { $set: { runHintsUsed: 0 } },
+        { upsert: false, runValidators: false }
+      )
+
       doc.inLobby = false
       doc.secretPlayerId = player.id
       doc.photoHintUsed = false

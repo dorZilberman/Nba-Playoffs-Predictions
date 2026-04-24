@@ -5,6 +5,7 @@ import dbConnect from "@/app/lib/db"
 import HangmanRoundState from "@/app/lib/models/HangmanRoundState"
 import HangmanStreakStats from "@/app/lib/models/HangmanStreakStats"
 import { userExistsInDb } from "@/app/lib/utils/userDbGate"
+import { getHangmanHintMask } from "@/app/lib/minigames/hangmanHintMask"
 import mongoose from "mongoose"
 
 export async function GET(request: Request) {
@@ -33,7 +34,7 @@ export async function GET(request: Request) {
               playerId: null,
               guessedLetters: [],
               wrong: 0,
-              hintsUsed: 0,
+              hintMask: 0,
               status: "playing",
             },
           },
@@ -61,9 +62,10 @@ export async function GET(request: Request) {
               playerId: null,
               guessedLetters: [],
               wrong: 0,
-              hintsUsed: 0,
+              hintMask: 0,
               status: "playing",
             },
+            $unset: { hintsUsed: "" },
           },
           { new: true, runValidators: false }
         )
@@ -77,6 +79,7 @@ export async function GET(request: Request) {
           inLobby: true,
           currentStreak: streakDoc?.currentStreak ?? 0,
           bestStreak: streakDoc?.bestStreak ?? 0,
+          runHintsUsed: streakDoc?.runHintsUsed ?? 0,
           round: null,
         })
       }
@@ -98,15 +101,13 @@ export async function GET(request: Request) {
           inLobby: true,
           currentStreak: streakDoc?.currentStreak ?? 0,
           bestStreak: streakDoc?.bestStreak ?? 0,
+          runHintsUsed: streakDoc?.runHintsUsed ?? 0,
           round: null,
         })
       }
 
       const inLobby = roundDoc.inLobby === true
-      const rawHints = Number(roundDoc.hintsUsed)
-      const hintsUsedNorm = Number.isFinite(rawHints)
-        ? Math.min(4, Math.max(0, Math.floor(rawHints)))
-        : 0
+      const hintMask = getHangmanHintMask(roundDoc)
 
       const round =
         !inLobby && roundDoc.playerId
@@ -114,7 +115,7 @@ export async function GET(request: Request) {
               playerId: roundDoc.playerId,
               guessedLetters: roundDoc.guessedLetters ?? [],
               wrong: roundDoc.wrong,
-              hintsUsed: hintsUsedNorm,
+              hintMask,
               status: roundDoc.status,
             }
           : null
@@ -123,6 +124,7 @@ export async function GET(request: Request) {
         inLobby,
         currentStreak: streakDoc?.currentStreak ?? 0,
         bestStreak: streakDoc?.bestStreak ?? 0,
+        runHintsUsed: streakDoc?.runHintsUsed ?? 0,
         round,
       })
     }

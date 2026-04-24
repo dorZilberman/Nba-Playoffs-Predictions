@@ -45,6 +45,8 @@ type BestStreakLeaderboardCardProps = {
   loading: boolean
   myUserId?: string
   emptyMessage?: string
+  /** When set, show a third column for hint tie-break scores (`hintsUsedTotal` on each row). */
+  hintsColumnLabel?: string
 }
 
 export function BestStreakLeaderboardCard({
@@ -54,7 +56,9 @@ export function BestStreakLeaderboardCard({
   loading,
   myUserId,
   emptyMessage = "No streaks yet — be the first to play.",
+  hintsColumnLabel,
 }: BestStreakLeaderboardCardProps) {
+  const showHints = Boolean(hintsColumnLabel)
   return (
     <Card>
       <CardHeader className="px-4 sm:px-6">
@@ -74,6 +78,11 @@ export function BestStreakLeaderboardCard({
                   <TableHead className="w-12">#</TableHead>
                   <TableHead>Player</TableHead>
                   <TableHead className="text-right">Best</TableHead>
+                  {showHints ? (
+                    <TableHead className="text-right tabular-nums">
+                      {hintsColumnLabel}
+                    </TableHead>
+                  ) : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -113,6 +122,11 @@ export function BestStreakLeaderboardCard({
                       <TableCell className="text-right tabular-nums font-medium">
                         {row.bestStreak}
                       </TableCell>
+                      {showHints ? (
+                        <TableCell className="text-right tabular-nums text-muted-foreground">
+                          {row.hintsUsedTotal ?? 0}
+                        </TableCell>
+                      ) : null}
                     </TableRow>
                   )
                 })}

@@ -18,7 +18,20 @@ import type {
 import type { BestStreakLeaderboardRow } from "@/app/lib/minigames/bestStreakLeaderboard"
 import { BestStreakLeaderboardCard } from "@/components/minigames/BestStreakLeaderboardCard"
 import { WhoAmIPlayerPicker } from "@/components/minigames/WhoAmIPlayerPicker"
+import {
+  NbaConferenceDivisionMapDialog,
+  NbaMapInfoButton,
+  useConferenceDivisionTree,
+} from "@/components/minigames/NbaConferenceDivisionMapDialog"
 import { cn } from "@/app/lib/utils/cn"
+
+type WhoAmISessionPayload = {
+  inLobby: boolean
+  currentStreak: number
+  bestStreak: number
+  runHintsUsed?: number
+  round: WhoAmIClientRound | null
+}
 
 const COLUMNS: { key: WhoAmIColumnKey; label: string }[] = [
   { key: "team", label: "Team" },
@@ -134,10 +147,12 @@ function MobileGuessCards({
   guessRows,
   status,
   answerPlayerId,
+  onOpenNbaMap,
 }: {
   guessRows: WhoAmIGuessRowPayload[]
   status: WhoAmIClientRound["status"]
   answerPlayerId: string | null | undefined
+  onOpenNbaMap: () => void
 }) {
   if (guessRows.length === 0) {
     return null
@@ -169,8 +184,15 @@ function MobileGuessCards({
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
                 {COLUMNS.map((c) => (
                   <div key={c.key} className="flex min-w-0 flex-col gap-1">
-                    <span className="truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                      {c.label}
+                    <span className="min-w-0 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      {c.key === "conference" || c.key === "division" ? (
+                        <span className="inline-flex min-w-0 max-w-full items-center gap-0.5">
+                          <span className="min-w-0 flex-1 truncate">{c.label}</span>
+                          <NbaMapInfoButton onOpen={onOpenNbaMap} />
+                        </span>
+                      ) : (
+                        c.label
+                      )}
                     </span>
                     <GuessAttributeTile
                       text={gr.display[c.key]}
@@ -203,6 +225,11 @@ export function WhoAmIGame({ showTitle = true }: WhoAmIGameProps) {
 
   const [streakCurrent, setStreakCurrent] = useState(0)
   const [streakBest, setStreakBest] = useState(0)
+  const [runHintsUsed, setRunHintsUsed] = useState(0)
+  const [nbaMapOpen, setNbaMapOpen] = useState(false)
+  const conferenceDivisionTree = useConferenceDivisionTree(
+    bundle?.players ?? null
+  )
   const [lbRows, setLbRows] = useState<BestStreakLeaderboardRow[]>([])
   const [lbLoading, setLbLoading] = useState(true)
 
@@ -239,15 +266,10 @@ export function WhoAmIGame({ showTitle = true }: WhoAmIGameProps) {
     loadLeaderboard()
   }, [loadLeaderboard])
 
-  const hydrateFromServer = useCallback(
-    async (payload: {
-      inLobby: boolean
-      currentStreak: number
-      bestStreak: number
-      round: WhoAmIClientRound | null
-    }) => {
+  const hydrateFromServer = useCallback(async (payload: WhoAmISessionPayload) => {
       setStreakCurrent(payload.currentStreak)
       setStreakBest(payload.bestStreak)
+      setRunHintsUsed(payload.runHintsUsed ?? 0)
 
       if (!payload.round) {
         setInLobby(true)
@@ -284,12 +306,7 @@ export function WhoAmIGame({ showTitle = true }: WhoAmIGameProps) {
           if (!cancelled) setLoadError("Could not load saved game.")
           return
         }
-        const sessionJson = (await sres.json()) as {
-          inLobby: boolean
-          currentStreak: number
-          bestStreak: number
-          round: WhoAmIClientRound | null
-        }
+        const sessionJson = (await sres.json()) as WhoAmISessionPayload
         if (cancelled) return
         setBundle(data)
         await hydrateFromServer(sessionJson)
@@ -322,9 +339,11 @@ export function WhoAmIGame({ showTitle = true }: WhoAmIGameProps) {
         const d = (await res.json()) as {
           currentStreak: number
           bestStreak: number
+          runHintsUsed?: number
         }
         setStreakCurrent(d.currentStreak)
         setStreakBest(d.bestStreak)
+        setRunHintsUsed(d.runHintsUsed ?? 0)
         loadLeaderboard()
 
         await fetch("/api/minigames/who-am-i/to-lobby", { method: "POST" })
@@ -332,12 +351,7 @@ export function WhoAmIGame({ showTitle = true }: WhoAmIGameProps) {
           cache: "no-store",
         })
         if (sres.ok && bundle) {
-          const sj = (await sres.json()) as {
-            inLobby: boolean
-            currentStreak: number
-            bestStreak: number
-            round: WhoAmIClientRound | null
-          }
+          const sj = (await sres.json()) as WhoAmISessionPayload
           await hydrateFromServer(sj)
         }
         setLobbyNote(
@@ -360,12 +374,7 @@ export function WhoAmIGame({ showTitle = true }: WhoAmIGameProps) {
       cache: "no-store",
     })
     if (!sres.ok || !bundle) return
-    const sj = (await sres.json()) as {
-      inLobby: boolean
-      currentStreak: number
-      bestStreak: number
-      round: WhoAmIClientRound | null
-    }
+    const sj = (await sres.json()) as WhoAmISessionPayload
     roundSeqRef.current += 1
     reportedSeqRef.current = null
     setPickerPlayerId("")
@@ -408,12 +417,7 @@ export function WhoAmIGame({ showTitle = true }: WhoAmIGameProps) {
       cache: "no-store",
     })
     if (!sres.ok || !bundle) return
-    const sj = (await sres.json()) as {
-      inLobby: boolean
-      currentStreak: number
-      bestStreak: number
-      round: WhoAmIClientRound | null
-    }
+    const sj = (await sres.json()) as WhoAmISessionPayload
     roundSeqRef.current += 1
     reportedSeqRef.current = null
     setPickerPlayerId("")
@@ -456,12 +460,7 @@ export function WhoAmIGame({ showTitle = true }: WhoAmIGameProps) {
       cache: "no-store",
     })
     if (sres.ok && bundle) {
-      const sj = (await sres.json()) as {
-        inLobby: boolean
-        currentStreak: number
-        bestStreak: number
-        round: WhoAmIClientRound | null
-      }
+      const sj = (await sres.json()) as WhoAmISessionPayload
       await hydrateFromServer(sj)
     }
   }, [round?.status, inLobby, round, loadLeaderboard, bundle, hydrateFromServer])
@@ -477,6 +476,10 @@ export function WhoAmIGame({ showTitle = true }: WhoAmIGameProps) {
       const data = (await res.json()) as {
         photoHintUsed: boolean
         photoHintUrl: string | null
+        runHintsUsed?: number
+      }
+      if (typeof data.runHintsUsed === "number") {
+        setRunHintsUsed(data.runHintsUsed)
       }
       setRound((prev) =>
         prev
@@ -524,9 +527,13 @@ export function WhoAmIGame({ showTitle = true }: WhoAmIGameProps) {
               const streakJson = (await rr.json()) as {
                 currentStreak: number
                 bestStreak: number
+                runHintsUsed?: number
               }
               setStreakCurrent(streakJson.currentStreak)
               setStreakBest(streakJson.bestStreak)
+              if (typeof streakJson.runHintsUsed === "number") {
+                setRunHintsUsed(streakJson.runHintsUsed)
+              }
               loadLeaderboard()
             }
           } catch {
@@ -630,7 +637,7 @@ export function WhoAmIGame({ showTitle = true }: WhoAmIGameProps) {
             </p>
           )}
 
-          <div className="flex flex-wrap gap-4 text-sm">
+          <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm sm:gap-x-8">
             <div>
               <span className="text-muted-foreground">Current streak</span>
               <p className="text-2xl font-semibold tabular-nums">{streakCurrent}</p>
@@ -638,6 +645,10 @@ export function WhoAmIGame({ showTitle = true }: WhoAmIGameProps) {
             <div>
               <span className="text-muted-foreground">Best streak</span>
               <p className="text-2xl font-semibold tabular-nums">{streakBest}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Photo hints (this run)</span>
+              <p className="text-2xl font-semibold tabular-nums">{runHintsUsed}</p>
             </div>
           </div>
 
@@ -756,6 +767,7 @@ export function WhoAmIGame({ showTitle = true }: WhoAmIGameProps) {
                 guessRows={round.guessRows}
                 status={round.status}
                 answerPlayerId={round.answerPlayer?.id}
+                onOpenNbaMap={() => setNbaMapOpen(true)}
               />
 
               <div className="hidden overflow-x-auto rounded-2xl border border-border/50 bg-card/40 p-1.5 shadow-[0_2px_16px_-4px_rgba(0,0,0,0.08)] backdrop-blur-[2px] dark:border-white/[0.06] dark:bg-card/25 dark:shadow-[0_2px_24px_-8px_rgba(0,0,0,0.4)] sm:p-2 md:block">
@@ -783,7 +795,16 @@ export function WhoAmIGame({ showTitle = true }: WhoAmIGameProps) {
                             "backdrop-blur-sm dark:bg-muted/50 sm:text-[11px]"
                           )}
                         >
-                          {c.label}
+                          {c.key === "conference" || c.key === "division" ? (
+                            <span className="inline-flex w-full items-center justify-center gap-0.5">
+                              <span>{c.label}</span>
+                              <NbaMapInfoButton
+                                onOpen={() => setNbaMapOpen(true)}
+                              />
+                            </span>
+                          ) : (
+                            c.label
+                          )}
                         </th>
                       ))}
                     </tr>
@@ -887,12 +908,19 @@ export function WhoAmIGame({ showTitle = true }: WhoAmIGameProps) {
         </CardContent>
       </Card>
 
+      <NbaConferenceDivisionMapDialog
+        open={nbaMapOpen}
+        onOpenChange={setNbaMapOpen}
+        tree={conferenceDivisionTree}
+      />
+
       <BestStreakLeaderboardCard
         title="Who Am I? leaderboard"
-        description="Ranked by best win streak in Who Am I? — separate from Hangman and Who He Play For?."
+        description="Ranked by best streak, then by fewest total photo hints in the run that set your best (resets when you lose or give up). No hint in a round counts as 0 for that round."
         rows={lbRows}
         loading={lbLoading}
         myUserId={myId}
+        hintsColumnLabel="Hints"
       />
     </div>
   )

@@ -2,6 +2,7 @@
 
 import { useMemo } from "react"
 import Image from "next/image"
+import { getNbaTeamLogoUrlByFullName } from "@/app/lib/nbaTeamLogos"
 import { useTeams } from "@/components/teams-provider"
 
 interface TeamDisplayProps {
@@ -26,6 +27,14 @@ export function TeamDisplay({
     return getTeamByName(teamName)
   }, [teamName, getTeamByName])
 
+  /** DB row may be missing or omit logoUrl; minigame / roster use canonical names from `nbaTeamsSeedData`. */
+  const logoUrl = useMemo(() => {
+    if (!teamName || teamName === "TBD") return null
+    const fromDb = team?.logoUrl?.trim()
+    if (fromDb) return fromDb
+    return getNbaTeamLogoUrlByFullName(teamName) ?? null
+  }, [teamName, team?.logoUrl])
+
   const sizeClasses = {
     sm: { logo: "w-4 h-4", text: "text-[10px] md:text-xs" },
     md: { logo: "w-5 h-5 md:w-6 md:h-6", text: "text-sm" },
@@ -47,7 +56,7 @@ export function TeamDisplay({
     )
   }
 
-  if (loading) {
+  if (loading && !logoUrl) {
     return (
       <div className={`flex items-center gap-2 ${className}`}>
         <div
@@ -70,10 +79,10 @@ export function TeamDisplay({
   
   return (
     <div className={`flex items-center gap-1 ${className} min-w-0 ${showName && !shouldCenter ? 'w-full' : ''}`}>
-      {team?.logoUrl ? (
+      {logoUrl ? (
         <div className={`${currentSize.logo} relative shrink-0`}>
           <Image
-            src={team.logoUrl}
+            src={logoUrl}
             alt={teamName}
             width={64}
             height={64}

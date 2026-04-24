@@ -27,13 +27,21 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "No session" }, { status: 400 })
       }
 
-      doc.inLobby = true
-      doc.playerId = null
-      doc.guessedLetters = []
-      doc.wrong = 0
-      doc.hintsUsed = 0
-      doc.status = "playing"
-      await doc.save()
+      await HangmanRoundState.findOneAndUpdate(
+        { userId },
+        {
+          $set: {
+            inLobby: true,
+            playerId: null,
+            guessedLetters: [],
+            wrong: 0,
+            hintMask: 0,
+            status: "playing",
+          },
+          $unset: { hintsUsed: "" },
+        },
+        { runValidators: false }
+      )
 
       return NextResponse.json({ ok: true })
     }

@@ -10,7 +10,10 @@ export interface IHangmanRoundState {
   playerId: string | null
   guessedLetters: string[]
   wrong: number
-  hintsUsed: number
+  /** Bit i = conference(0), team(1), position(2), photo(3). */
+  hintMask: number
+  /** @deprecated Only on legacy documents */
+  hintsUsed?: number
   status: HangmanPersistedStatus
   updatedAt: Date
 }
@@ -43,10 +46,17 @@ const HangmanRoundStateSchema = new Schema<IHangmanRoundState>(
       default: 0,
       min: 0,
     },
-    hintsUsed: {
+    hintMask: {
       type: Number,
       required: true,
       default: 0,
+      min: 0,
+      max: 15,
+    },
+    /** @deprecated Legacy sequential count; prefer hintMask. Kept for reading old DB rows. */
+    hintsUsed: {
+      type: Number,
+      required: false,
       min: 0,
       max: 4,
     },
@@ -64,7 +74,7 @@ const HangmanRoundStateSchema = new Schema<IHangmanRoundState>(
 
 /**
  * Next.js dev HMR re-imports this module but Mongoose keeps the old compiled
- * model (e.g. hintsUsed max still 3 after we bump to 4). Drop stale model in
+ * model. Drop stale model in
  * development so schema changes apply without a full server restart.
  */
 if (process.env.NODE_ENV !== "production") {

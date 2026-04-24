@@ -23,6 +23,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       currentStreak: doc?.currentStreak ?? 0,
       bestStreak: doc?.bestStreak ?? 0,
+      runHintsUsed: doc?.runHintsUsed ?? 0,
     })
   })
 }

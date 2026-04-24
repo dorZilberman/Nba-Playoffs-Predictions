@@ -12,6 +12,7 @@ import type { HangmanPlayer, HangmanPlayerBundle } from "@/app/lib/minigames/typ
 import type { BestStreakLeaderboardRow } from "@/app/lib/minigames/bestStreakLeaderboard"
 import { BestStreakLeaderboardCard } from "@/components/minigames/BestStreakLeaderboardCard"
 import { cn } from "@/app/lib/utils/cn"
+import { getHangmanHintMask } from "@/app/lib/minigames/hangmanHintMask"
 
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")
 const MAX_WRONG = 7
@@ -20,7 +21,10 @@ type PersistedRound = {
   playerId: string
   guessedLetters: string[]
   wrong: number
-  hintsUsed: number
+  /** Bit i: conference(0), team(1), position(2), photo(3) */
+  hintMask?: number
+  /** @deprecated from older API; migrated via getHangmanHintMask */
+  hintsUsed?: number
   status: "playing" | "won" | "lost"
 }
 
@@ -76,11 +80,12 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
   const [current, setCurrent] = useState<HangmanPlayer | null>(null)
   const [guessed, setGuessed] = useState<Set<string>>(() => new Set())
   const [wrong, setWrong] = useState(0)
-  const [hintsUsed, setHintsUsed] = useState(0)
+  const [hintMask, setHintMask] = useState(0)
   const [status, setStatus] = useState<"playing" | "won" | "lost">("playing")
 
   const [streakCurrent, setStreakCurrent] = useState(0)
   const [streakBest, setStreakBest] = useState(0)
+  const [runHintsUsed, setRunHintsUsed] = useState(0)
   const [lbRows, setLbRows] = useState<BestStreakLeaderboardRow[]>([])
   const [lbLoading, setLbLoading] = useState(true)
 
@@ -95,8 +100,8 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
   const autoTimerRef = useRef<number | null>(null)
   const streakRef = useRef(0)
   const lossHandledRef = useRef(false)
-  /** Tracks last flushed `hintsUsed` so we only PATCH when hints advance (not on every letter). */
-  const lastFlushedHintsRef = useRef<number | null>(null)
+  /** Tracks last flushed `hintMask` so we only PATCH when hints advance (not on every letter). */
+  const lastFlushedHintMaskRef = useRef<number | null>(null)
 
   useEffect(() => {
     streakRef.current = streakCurrent
@@ -130,7 +135,12 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
       setCurrent(p)
       setGuessed(new Set(r.guessedLetters))
       setWrong(r.wrong)
-      setHintsUsed(r.hintsUsed)
+      setHintMask(
+        getHangmanHintMask({
+          hintMask: r.hintMask,
+          hintsUsed: r.hintsUsed,
+        })
+      )
       setStatus(r.status)
       return true
     },
@@ -144,11 +154,15 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
         inLobby: boolean
         currentStreak: number
         bestStreak: number
+        runHintsUsed?: number
         round: PersistedRound | null
       }
     ) => {
       setStreakCurrent(payload.currentStreak)
       setStreakBest(payload.bestStreak)
+      if (typeof payload.runHintsUsed === "number") {
+        setRunHintsUsed(payload.runHintsUsed)
+      }
 
       if (payload.round?.status === "lost") {
         const p = players.find((x) => x.id === payload.round!.playerId)
@@ -158,7 +172,7 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
         setCurrent(null)
         setGuessed(new Set())
         setWrong(0)
-        setHintsUsed(0)
+        setHintMask(0)
         setStatus("playing")
         void fetch("/api/minigames/hangman/to-lobby", { method: "POST" })
         return
@@ -170,7 +184,7 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
         setCurrent(null)
         setGuessed(new Set())
         setWrong(0)
-        setHintsUsed(0)
+        setHintMask(0)
         setStatus("playing")
         return
       }
@@ -181,7 +195,7 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
         setCurrent(null)
         setGuessed(new Set())
         setWrong(0)
-        setHintsUsed(0)
+        setHintMask(0)
         setStatus("playing")
         return
       }
@@ -196,7 +210,7 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
         setCurrent(null)
         setGuessed(new Set())
         setWrong(0)
-        setHintsUsed(0)
+        setHintMask(0)
         setStatus("playing")
         setLobbyNote(
           "Could not restore the last round (player list may have changed). Start New Game."
@@ -227,6 +241,7 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
           inLobby: boolean
           currentStreak: number
           bestStreak: number
+          runHintsUsed?: number
           round: PersistedRound | null
         }
         if (cancelled) return
@@ -247,7 +262,6 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
       playerId: current.id,
       guessed: Array.from(guessed).sort(),
       wrong,
-      hintsUsed,
       status,
     })
     if (sig === lastSavedSigRef.current) return
@@ -262,12 +276,11 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
           playerId: current.id,
           guessedLetters: Array.from(guessed),
           wrong,
-          hintsUsed,
           status,
         }),
       })
     }, 250)
-  }, [inLobby, current, guessed, wrong, hintsUsed, status])
+  }, [inLobby, current, guessed, wrong, status])
 
   useEffect(() => {
     return () => {
@@ -298,29 +311,28 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
         playerId: current.id,
         guessedLetters: Array.from(guessed),
         wrong,
-        hintsUsed,
         status,
       }),
     })
-  }, [inLobby, current, guessed, wrong, hintsUsed, status])
+  }, [inLobby, current, guessed, wrong, status])
 
   /**
-   * Hints must survive refresh — debounced persist can lag behind `hintsUsed`
-   * (especially hint 4). Flush immediately when hints advance (including hydrate).
+   * Hints are persisted by POST /hangman/hint. Flush letter state when the mask
+   * advances so guesses aren’t left only in a lagging debounce.
    */
   useEffect(() => {
     if (inLobby || !current) {
-      lastFlushedHintsRef.current = hintsUsed
+      lastFlushedHintMaskRef.current = hintMask
       return
     }
-    if (hintsUsed < 1) {
-      lastFlushedHintsRef.current = hintsUsed
+    if (hintMask < 1) {
+      lastFlushedHintMaskRef.current = hintMask
       return
     }
-    if (lastFlushedHintsRef.current === hintsUsed) return
-    lastFlushedHintsRef.current = hintsUsed
+    if (lastFlushedHintMaskRef.current === hintMask) return
+    lastFlushedHintMaskRef.current = hintMask
     flushSave()
-  }, [hintsUsed, inLobby, current, flushSave])
+  }, [hintMask, inLobby, current, flushSave])
 
   /** Move to lobby immediately after a loss so “Start New Game” is visible without waiting on network. */
   useEffect(() => {
@@ -337,7 +349,7 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
       setInLobby(true)
       setGuessed(new Set())
       setWrong(0)
-      setHintsUsed(0)
+      setHintMask(0)
       setStatus("playing")
       void fetch("/api/minigames/hangman/to-lobby", { method: "POST" })
       return
@@ -356,7 +368,7 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
     setCurrent(null)
     setGuessed(new Set())
     setWrong(0)
-    setHintsUsed(0)
+    setHintMask(0)
     setStatus("playing")
   }, [status, current, flushSave])
 
@@ -378,9 +390,11 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
         const d = (await res.json()) as {
           currentStreak: number
           bestStreak: number
+          runHintsUsed?: number
         }
         setStreakCurrent(d.currentStreak)
         setStreakBest(d.bestStreak)
+        if (typeof d.runHintsUsed === "number") setRunHintsUsed(d.runHintsUsed)
         loadLeaderboard()
 
         if (outcome === "lost") {
@@ -393,6 +407,7 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
               inLobby: boolean
               currentStreak: number
               bestStreak: number
+              runHintsUsed?: number
               round: PersistedRound | null
             }
             if (bundle) {
@@ -474,9 +489,11 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
       streakEnded: number
       currentStreak: number
       bestStreak: number
+      runHintsUsed?: number
     }
     setStreakCurrent(d.currentStreak)
     setStreakBest(d.bestStreak)
+    if (typeof d.runHintsUsed === "number") setRunHintsUsed(d.runHintsUsed)
     loadLeaderboard()
     setLobbyNote(
       d.streakEnded > 0
@@ -493,6 +510,7 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
         inLobby: boolean
         currentStreak: number
         bestStreak: number
+        runHintsUsed?: number
         round: PersistedRound | null
       }
       await hydrateFromServer(bundle.players, sj)
@@ -532,6 +550,23 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
     [current, guessed, needed, status, inLobby]
   )
 
+  const requestHint = useCallback(
+    async (bit: 0 | 1 | 2 | 3) => {
+      if (status !== "playing" || !current || inLobby) return
+      if (hintMask & (1 << bit)) return
+      const res = await fetch("/api/minigames/hangman/hint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bit }),
+      })
+      if (!res.ok) return
+      const d = (await res.json()) as { hintMask: number; runHintsUsed: number }
+      setHintMask(d.hintMask)
+      if (typeof d.runHintsUsed === "number") setRunHintsUsed(d.runHintsUsed)
+    },
+    [status, current, inLobby]
+  )
+
   if (loadError) {
     return (
       <p className="text-sm text-destructive" role="alert">
@@ -546,7 +581,9 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
     )
   }
 
-  const showHintsPanel = Boolean(current && !inLobby && hintsUsed >= 1)
+  const showHintsPanel = Boolean(
+    current && !inLobby && (hintMask & 0b1111) !== 0
+  )
 
   const showPlayfield = !inLobby && current
 
@@ -588,6 +625,12 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
             <div>
               <span className="text-muted-foreground">Best streak</span>
               <p className="text-2xl font-semibold tabular-nums">{streakBest}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Hints (this run)</span>
+              <p className="text-2xl font-semibold tabular-nums">
+                {runHintsUsed}
+              </p>
             </div>
           </div>
 
@@ -668,18 +711,18 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
 
               {showHintsPanel && current && (
                 <div className="rounded-md border bg-muted/40 px-2.5 py-2 text-xs sm:px-3 sm:text-sm space-y-2">
-                  {hintsUsed >= 1 && (
+                  {(hintMask & 1) !== 0 && (
                     <p className="break-words">
                       Conference: {current.conference}
                     </p>
                   )}
-                  {hintsUsed >= 2 && (
+                  {(hintMask & 2) !== 0 && (
                     <p className="break-words">Team: {current.team}</p>
                   )}
-                  {hintsUsed >= 3 && (
+                  {(hintMask & 4) !== 0 && (
                     <p className="break-words">Position: {current.position}</p>
                   )}
-                  {hintsUsed >= 4 && (
+                  {(hintMask & 8) !== 0 && (
                     <div className="space-y-2 pt-1">
                       <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                         Photo
@@ -710,8 +753,8 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
                   variant="outline"
                   size="sm"
                   className="h-auto min-h-[2.75rem] min-w-0 whitespace-normal px-1.5 py-1.5 text-center text-[10px] leading-snug sm:h-9 sm:min-h-9 sm:min-w-0 sm:flex-none sm:px-3 sm:text-sm"
-                  disabled={hintsUsed !== 0 || status !== "playing"}
-                  onClick={() => setHintsUsed(1)}
+                  disabled={Boolean(hintMask & 1) || status !== "playing"}
+                  onClick={() => void requestHint(0)}
                 >
                   Hint 1 — conference
                 </Button>
@@ -720,8 +763,8 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
                   variant="outline"
                   size="sm"
                   className="h-auto min-h-[2.75rem] min-w-0 whitespace-normal px-1.5 py-1.5 text-center text-[10px] leading-snug sm:h-9 sm:min-h-9 sm:min-w-0 sm:flex-none sm:px-3 sm:text-sm"
-                  disabled={hintsUsed !== 1 || status !== "playing"}
-                  onClick={() => setHintsUsed(2)}
+                  disabled={Boolean(hintMask & 2) || status !== "playing"}
+                  onClick={() => void requestHint(1)}
                 >
                   Hint 2 — team
                 </Button>
@@ -730,8 +773,8 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
                   variant="outline"
                   size="sm"
                   className="h-auto min-h-[2.75rem] min-w-0 whitespace-normal px-1.5 py-1.5 text-center text-[10px] leading-snug sm:h-9 sm:min-h-9 sm:min-w-0 sm:flex-none sm:px-3 sm:text-sm"
-                  disabled={hintsUsed !== 2 || status !== "playing"}
-                  onClick={() => setHintsUsed(3)}
+                  disabled={Boolean(hintMask & 4) || status !== "playing"}
+                  onClick={() => void requestHint(2)}
                 >
                   Hint 3 — position
                 </Button>
@@ -740,8 +783,8 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
                   variant="outline"
                   size="sm"
                   className="h-auto min-h-[2.75rem] min-w-0 whitespace-normal px-1.5 py-1.5 text-center text-[10px] leading-snug sm:h-9 sm:min-h-9 sm:min-w-0 sm:flex-none sm:px-3 sm:text-sm"
-                  disabled={hintsUsed !== 3 || status !== "playing"}
-                  onClick={() => setHintsUsed(4)}
+                  disabled={Boolean(hintMask & 8) || status !== "playing"}
+                  onClick={() => void requestHint(3)}
                 >
                   Hint 4 — photo
                 </Button>
@@ -832,10 +875,11 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
       </Card>
 
       <BestStreakLeaderboardCard
-        description="Win consecutive rounds without losing (running out of wrong guesses). One row per player, ranked by best streak."
+        description="Win consecutive rounds without losing. Ties on best streak: fewer total hints in the run that set your best rank higher. Hints reset when you lose or give up."
         rows={lbRows}
         loading={lbLoading}
         myUserId={myId}
+        hintsColumnLabel="Hints"
       />
     </div>
   )

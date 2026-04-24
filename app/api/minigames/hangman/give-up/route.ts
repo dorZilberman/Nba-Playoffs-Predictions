@@ -46,7 +46,7 @@ export async function POST(request: Request) {
       /** Only `$set` — never mix `$set.currentStreak` with `$setOnInsert.currentStreak` (MongoDB conflict → 500). */
       await HangmanStreakStats.updateOne(
         { userId },
-        { $set: { currentStreak: 0 } },
+        { $set: { currentStreak: 0, runHintsUsed: 0 } },
         { runValidators: false }
       )
 
@@ -61,9 +61,10 @@ export async function POST(request: Request) {
             playerId: null,
             guessedLetters: [],
             wrong: 0,
-            hintsUsed: 0,
+            hintMask: 0,
             status: "playing",
           },
+          $unset: { hintsUsed: "" },
         },
         { runValidators: false }
       )
@@ -72,6 +73,7 @@ export async function POST(request: Request) {
         streakEnded: streakBefore,
         currentStreak: 0,
         bestStreak: streakAfter?.bestStreak ?? 0,
+        runHintsUsed: streakAfter?.runHintsUsed ?? 0,
       })
     }
   )

@@ -55,6 +55,8 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: "Could not load round" }, { status: 500 })
       }
 
+      const runHintsUsed = streakDoc?.runHintsUsed ?? 0
+
       if (roundDoc.status === "lost") {
         const fixed = await WhoAmIRoundState.findOneAndUpdate(
           { userId },
@@ -86,6 +88,7 @@ export async function GET(request: Request) {
           inLobby: true,
           currentStreak: streakDoc?.currentStreak ?? 0,
           bestStreak: streakDoc?.bestStreak ?? 0,
+          runHintsUsed,
           round: null,
         })
       }
@@ -132,6 +135,7 @@ export async function GET(request: Request) {
         inLobby,
         currentStreak: streakDoc?.currentStreak ?? 0,
         bestStreak: streakDoc?.bestStreak ?? 0,
+        runHintsUsed,
         round,
       })
     }

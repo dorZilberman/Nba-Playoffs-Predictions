@@ -18,7 +18,6 @@ const bodySchema = z.object({
   playerId: z.string(),
   guessedLetters: z.array(z.string().length(1)),
   wrong: z.number().int().min(0).max(MAX_WRONG),
-  hintsUsed: z.number().int().min(0).max(4),
   status: z.enum(["playing", "won", "lost"]),
 })
 
@@ -54,7 +53,7 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: "No active round" }, { status: 400 })
       }
 
-      const { playerId, guessedLetters, wrong, hintsUsed, status } = parsed.data
+      const { playerId, guessedLetters, wrong, status } = parsed.data
 
       if (doc.playerId !== playerId) {
         return NextResponse.json({ error: "Stale round" }, { status: 409 })
@@ -66,7 +65,6 @@ export async function PATCH(request: Request) {
 
       doc.guessedLetters = guessedLetters.map((s) => s.toUpperCase())
       doc.wrong = wrong
-      doc.hintsUsed = hintsUsed
       doc.status = status
 
       try {

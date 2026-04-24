@@ -4,6 +4,10 @@ import { runApiRoute } from "@/app/lib/logging/runApiRoute"
 import dbConnect from "@/app/lib/db"
 import WhoAmIStreakStats from "@/app/lib/models/WhoAmIStreakStats"
 import { userExistsInDb } from "@/app/lib/utils/userDbGate"
+import {
+  applyStreakOnRoundLoss,
+  applyStreakOnRoundWin,
+} from "@/app/lib/minigames/streakRunHints"
 import mongoose from "mongoose"
 import { z } from "zod"
 
@@ -47,6 +51,7 @@ export async function POST(request: Request) {
             userId,
             currentStreak: 0,
             bestStreak: 0,
+            runHintsUsed: 0,
           },
         },
         { upsert: true, new: true }
@@ -56,13 +61,14 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Could not save streak" }, { status: 500 })
       }
 
+      if (doc.runHintsUsed == null) {
+        doc.runHintsUsed = 0
+      }
+
       if (outcome === "won") {
-        doc.currentStreak += 1
-        if (doc.currentStreak > doc.bestStreak) {
-          doc.bestStreak = doc.currentStreak
-        }
+        applyStreakOnRoundWin(doc)
       } else {
-        doc.currentStreak = 0
+        applyStreakOnRoundLoss(doc)
       }
 
       await doc.save()
@@ -70,6 +76,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         currentStreak: doc.currentStreak,
         bestStreak: doc.bestStreak,
+        runHintsUsed: doc.runHintsUsed ?? 0,
       })
     }
   )

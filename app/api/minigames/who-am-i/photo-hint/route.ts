@@ -3,6 +3,7 @@ import { auth } from "@/app/lib/auth"
 import { runApiRoute } from "@/app/lib/logging/runApiRoute"
 import dbConnect from "@/app/lib/db"
 import WhoAmIRoundState from "@/app/lib/models/WhoAmIRoundState"
+import WhoAmIStreakStats from "@/app/lib/models/WhoAmIStreakStats"
 import { userExistsInDb } from "@/app/lib/utils/userDbGate"
 import { findPlayerById } from "@/app/lib/minigames/whoHePlayForGame"
 import bundleJson from "@/data/minigames/nba-players-2025-26.json"
@@ -48,9 +49,23 @@ export async function POST(request: Request) {
       doc.photoHintUsed = true
       await doc.save()
 
+      const streakAfter = await WhoAmIStreakStats.findOneAndUpdate(
+        { userId },
+        {
+          $inc: { runHintsUsed: 1 },
+          $setOnInsert: {
+            userId,
+            currentStreak: 0,
+            bestStreak: 0,
+          },
+        },
+        { upsert: true, new: true, runValidators: false }
+      )
+
       return NextResponse.json({
         photoHintUsed: true,
         photoHintUrl: secret?.photoUrl ?? null,
+        runHintsUsed: streakAfter?.runHintsUsed ?? 1,
       })
     }
   )

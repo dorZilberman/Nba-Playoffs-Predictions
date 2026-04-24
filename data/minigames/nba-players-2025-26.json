@@ -71,7 +71,7 @@
       "height": "6' 4\"",
       "nationality": "USA",
       "age": 22,
-      "jerseyNumber": null
+      "jerseyNumber": "51"
     },
     {
       "id": "espn-4712863",
@@ -237,7 +237,7 @@
       "position": "Forward",
       "photoUrl": "https://a.espncdn.com/i/headshots/nba/players/full/5211175.png",
       "height": "6' 8\"",
-      "nationality": null,
+      "nationality": "France",
       "age": 21,
       "jerseyNumber": "10"
     },
@@ -321,7 +321,7 @@
       "position": "Guard",
       "photoUrl": "https://a.espncdn.com/i/headshots/nba/players/full/5175647.png",
       "height": "6' 6\"",
-      "nationality": null,
+      "nationality": "Spain",
       "age": 20,
       "jerseyNumber": "28"
     },
@@ -657,7 +657,7 @@
       "position": "Guard",
       "photoUrl": "https://a.espncdn.com/i/headshots/nba/players/full/5242502.png",
       "height": "6' 6\"",
-      "nationality": null,
+      "nationality": "Israel",
       "age": 20,
       "jerseyNumber": "77"
     },
@@ -965,7 +965,7 @@
       "position": "Forward",
       "photoUrl": "https://a.espncdn.com/i/headshots/nba/players/full/5211176.png",
       "height": "6' 10\"",
-      "nationality": null,
+      "nationality": "France",
       "age": 20,
       "jerseyNumber": "31"
     },
@@ -1021,7 +1021,7 @@
       "position": "Forward",
       "photoUrl": "https://a.espncdn.com/i/headshots/nba/players/full/4711294.png",
       "height": "6' 8\"",
-      "nationality": null,
+      "nationality": "Lithuania",
       "age": 21,
       "jerseyNumber": "14"
     },
@@ -1063,7 +1063,7 @@
       "position": "Forward",
       "photoUrl": "https://a.espncdn.com/i/headshots/nba/players/full/5242496.png",
       "height": "6' 8\"",
-      "nationality": null,
+      "nationality": "France",
       "age": 19,
       "jerseyNumber": "24"
     },
@@ -1077,7 +1077,7 @@
       "position": "Guard",
       "photoUrl": "https://a.espncdn.com/i/headshots/nba/players/full/4871145.png",
       "height": "6' 7\"",
-      "nationality": null,
+      "nationality": "Australia",
       "age": 23,
       "jerseyNumber": "3"
     },
@@ -1119,7 +1119,7 @@
       "position": "Guard",
       "photoUrl": "https://a.espncdn.com/i/headshots/nba/players/full/5159895.png",
       "height": "5' 7\"",
-      "nationality": null,
+      "nationality": "Japan",
       "age": 24,
       "jerseyNumber": "8"
     },
@@ -3933,7 +3933,7 @@
       "position": "Forward",
       "photoUrl": "https://a.espncdn.com/i/headshots/nba/players/full/4997528.png",
       "height": "6' 10\"",
-      "nationality": null,
+      "nationality": "Serbia",
       "age": 22,
       "jerseyNumber": "5"
     },
@@ -4059,7 +4059,7 @@
       "position": "Forward",
       "photoUrl": null,
       "height": "6' 8\"",
-      "nationality": null,
+      "nationality": "Greece",
       "age": 24,
       "jerseyNumber": "29"
     },
@@ -4311,7 +4311,7 @@
       "position": "Forward",
       "photoUrl": "https://a.espncdn.com/i/headshots/nba/players/full/5279133.png",
       "height": "6' 11\"",
-      "nationality": null,
+      "nationality": "France",
       "age": 19,
       "jerseyNumber": "19"
     },
@@ -4535,7 +4535,7 @@
       "position": "Center",
       "photoUrl": "https://a.espncdn.com/i/headshots/nba/players/full/5157587.png",
       "height": "7' 3\"",
-      "nationality": null,
+      "nationality": "Australia",
       "age": 19,
       "jerseyNumber": "44"
     },
@@ -4661,7 +4661,7 @@
       "position": "Forward",
       "photoUrl": "https://a.espncdn.com/i/headshots/nba/players/full/4997538.png",
       "height": "6' 10\"",
-      "nationality": null,
+      "nationality": "Bosnia & Herzegovina",
       "age": 25,
       "jerseyNumber": "17"
     },
@@ -5221,7 +5221,7 @@
       "position": "Guard",
       "photoUrl": "https://a.espncdn.com/i/headshots/nba/players/full/5159925.png",
       "height": "6' 6\"",
-      "nationality": null,
+      "nationality": "Serbia",
       "age": 20,
       "jerseyNumber": "44"
     },
@@ -5473,7 +5473,7 @@
       "position": "Forward",
       "photoUrl": "https://a.espncdn.com/i/headshots/nba/players/full/5214637.png",
       "height": "6' 7\"",
-      "nationality": null,
+      "nationality": "France",
       "age": 21,
       "jerseyNumber": "93"
     },
@@ -5543,7 +5543,7 @@
       "position": "Forward",
       "photoUrl": "https://a.espncdn.com/i/headshots/nba/players/full/4870562.png",
       "height": "6' 9\"",
-      "nationality": null,
+      "nationality": "USA",
       "age": 22,
       "jerseyNumber": "25"
     },
@@ -5557,7 +5557,7 @@
       "position": "Forward",
       "photoUrl": "https://a.espncdn.com/i/headshots/nba/players/full/4432179.png",
       "height": "6' 7\"",
-      "nationality": null,
+      "nationality": "USA",
       "age": 25,
       "jerseyNumber": "16"
     },
@@ -6103,7 +6103,7 @@
       "position": "Center",
       "photoUrl": "https://a.espncdn.com/i/headshots/nba/players/full/5217746.png",
       "height": "7' 1\"",
-      "nationality": null,
+      "nationality": "China",
       "age": 20,
       "jerseyNumber": "16"
     },
@@ -7349,7 +7349,7 @@
       "position": "Guard",
       "photoUrl": "https://a.espncdn.com/i/headshots/nba/players/full/5104155.png",
       "height": "6' 7\"",
-      "nationality": null,
+      "nationality": "France",
       "age": 21,
       "jerseyNumber": "0"
     },
@@ -7475,7 +7475,7 @@
       "position": "Center",
       "photoUrl": "https://a.espncdn.com/i/headshots/nba/players/full/5160992.png",
       "height": "7' 0\"",
-      "nationality": null,
+      "nationality": "France",
       "age": 20,
       "jerseyNumber": "20"
     },
