@@ -36,9 +36,10 @@ const WhoAmIRoundStateSchema = new Schema<IWhoAmIRoundState>(
       required: true,
       default: false,
     },
+    /** Array of serialized guess rows (nested feedback objects). */
     guessRows: {
-      type: [Schema.Types.Mixed],
-      default: [],
+      type: [{ type: Schema.Types.Mixed }],
+      default: () => [],
     },
     status: {
       type: String,
