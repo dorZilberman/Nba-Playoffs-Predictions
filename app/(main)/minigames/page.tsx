@@ -1,7 +1,7 @@
 import { requireAuth } from "@/app/lib/utils/auth"
 import { HangmanTileIcon } from "@/components/minigames/HangmanTileIcon"
 import { MiniGameTile } from "@/components/minigames/MiniGameTile"
-import { Shirt } from "lucide-react"
+import { Shirt, UserRoundSearch } from "lucide-react"
 
 export default async function MiniGamesPage() {
   await requireAuth()
@@ -13,9 +13,9 @@ export default async function MiniGamesPage() {
           Mini Games
         </h1>
         <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
-          Casual games for fun. Hangman and Who He Play For? both track win
-          streaks and show a public best-streak leaderboard for everyone signed
-          in.
+          Casual games for fun. Hangman, Who He Play For?, and Who Am I? each
+          track their own win streaks and best-streak leaderboards for everyone
+          signed in.
         </p>
       </header>
 
@@ -34,6 +34,14 @@ export default async function MiniGamesPage() {
             title="Who He Play For?"
             description="Pick a team for each player — build a streak and climb the board."
             icon={Shirt}
+          />
+        </li>
+        <li className="min-w-0">
+          <MiniGameTile
+            href="/minigames/who-am-i"
+            title="Who Am I?"
+            description="Poeltl-style clues — optional photo hint, streaks, and leaderboard."
+            icon={UserRoundSearch}
           />
         </li>
       </ul>

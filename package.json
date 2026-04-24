@@ -12,7 +12,8 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "minigames:fetch-players": "npx -y node@20 scripts/fetch-hangman-nba-players.mjs"
+    "minigames:fetch-players": "npx -y node@20 scripts/fetch-hangman-nba-players.mjs",
+    "minigames:fetch-players:py": "python3 scripts/fetch_hangman_nba_players.py"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.0",

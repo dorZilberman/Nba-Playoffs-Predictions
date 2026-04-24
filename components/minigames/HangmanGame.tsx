@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSession } from "next-auth/react"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
@@ -94,6 +95,8 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
   const autoTimerRef = useRef<number | null>(null)
   const streakRef = useRef(0)
   const lossHandledRef = useRef(false)
+  /** Tracks last flushed `hintsUsed` so we only PATCH when hints advance (not on every letter). */
+  const lastFlushedHintsRef = useRef<number | null>(null)
 
   useEffect(() => {
     streakRef.current = streakCurrent
@@ -300,6 +303,24 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
       }),
     })
   }, [inLobby, current, guessed, wrong, hintsUsed, status])
+
+  /**
+   * Hints must survive refresh — debounced persist can lag behind `hintsUsed`
+   * (especially hint 4). Flush immediately when hints advance (including hydrate).
+   */
+  useEffect(() => {
+    if (inLobby || !current) {
+      lastFlushedHintsRef.current = hintsUsed
+      return
+    }
+    if (hintsUsed < 1) {
+      lastFlushedHintsRef.current = hintsUsed
+      return
+    }
+    if (lastFlushedHintsRef.current === hintsUsed) return
+    lastFlushedHintsRef.current = hintsUsed
+    flushSave()
+  }, [hintsUsed, inLobby, current, flushSave])
 
   /** Move to lobby immediately after a loss so “Start New Game” is visible without waiting on network. */
   useEffect(() => {
@@ -525,14 +546,7 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
     )
   }
 
-  const hintLines =
-    current && !inLobby
-      ? ([
-          hintsUsed >= 1 ? `Conference: ${current.conference}` : null,
-          hintsUsed >= 2 ? `Team: ${current.team}` : null,
-          hintsUsed >= 3 ? `Position: ${current.position}` : null,
-        ].filter(Boolean) as string[])
-      : []
+  const showHintsPanel = Boolean(current && !inLobby && hintsUsed >= 1)
 
   const showPlayfield = !inLobby && current
 
@@ -652,22 +666,50 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
                 </div>
               </div>
 
-              {hintLines.length > 0 && (
-                <div className="rounded-md border bg-muted/40 px-2.5 py-2 text-xs sm:px-3 sm:text-sm space-y-1">
-                  {hintLines.map((line, i) => (
-                    <p key={i} className="break-words">
-                      {line}
+              {showHintsPanel && current && (
+                <div className="rounded-md border bg-muted/40 px-2.5 py-2 text-xs sm:px-3 sm:text-sm space-y-2">
+                  {hintsUsed >= 1 && (
+                    <p className="break-words">
+                      Conference: {current.conference}
                     </p>
-                  ))}
+                  )}
+                  {hintsUsed >= 2 && (
+                    <p className="break-words">Team: {current.team}</p>
+                  )}
+                  {hintsUsed >= 3 && (
+                    <p className="break-words">Position: {current.position}</p>
+                  )}
+                  {hintsUsed >= 4 && (
+                    <div className="space-y-2 pt-1">
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                        Photo
+                      </p>
+                      {current.photoUrl ? (
+                        <div className="relative mx-auto aspect-square w-full max-w-[220px] overflow-hidden rounded-lg border bg-muted shadow-inner">
+                          <Image
+                            src={current.photoUrl}
+                            alt=""
+                            fill
+                            className="object-cover object-top"
+                            sizes="220px"
+                          />
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          No photo available for this player.
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
-              <div className="flex min-w-0 gap-1.5 sm:flex-wrap sm:gap-2">
+              <div className="grid min-w-0 grid-cols-2 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-auto min-h-[2.75rem] min-w-0 flex-1 basis-0 whitespace-normal px-1.5 py-1.5 text-center text-[10px] leading-snug sm:h-9 sm:min-h-9 sm:min-w-0 sm:flex-none sm:px-3 sm:text-sm"
+                  className="h-auto min-h-[2.75rem] min-w-0 whitespace-normal px-1.5 py-1.5 text-center text-[10px] leading-snug sm:h-9 sm:min-h-9 sm:min-w-0 sm:flex-none sm:px-3 sm:text-sm"
                   disabled={hintsUsed !== 0 || status !== "playing"}
                   onClick={() => setHintsUsed(1)}
                 >
@@ -677,7 +719,7 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-auto min-h-[2.75rem] min-w-0 flex-1 basis-0 whitespace-normal px-1.5 py-1.5 text-center text-[10px] leading-snug sm:h-9 sm:min-h-9 sm:min-w-0 sm:flex-none sm:px-3 sm:text-sm"
+                  className="h-auto min-h-[2.75rem] min-w-0 whitespace-normal px-1.5 py-1.5 text-center text-[10px] leading-snug sm:h-9 sm:min-h-9 sm:min-w-0 sm:flex-none sm:px-3 sm:text-sm"
                   disabled={hintsUsed !== 1 || status !== "playing"}
                   onClick={() => setHintsUsed(2)}
                 >
@@ -687,11 +729,21 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-auto min-h-[2.75rem] min-w-0 flex-1 basis-0 whitespace-normal px-1.5 py-1.5 text-center text-[10px] leading-snug sm:h-9 sm:min-h-9 sm:min-w-0 sm:flex-none sm:px-3 sm:text-sm"
+                  className="h-auto min-h-[2.75rem] min-w-0 whitespace-normal px-1.5 py-1.5 text-center text-[10px] leading-snug sm:h-9 sm:min-h-9 sm:min-w-0 sm:flex-none sm:px-3 sm:text-sm"
                   disabled={hintsUsed !== 2 || status !== "playing"}
                   onClick={() => setHintsUsed(3)}
                 >
                   Hint 3 — position
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-auto min-h-[2.75rem] min-w-0 whitespace-normal px-1.5 py-1.5 text-center text-[10px] leading-snug sm:h-9 sm:min-h-9 sm:min-w-0 sm:flex-none sm:px-3 sm:text-sm"
+                  disabled={hintsUsed !== 3 || status !== "playing"}
+                  onClick={() => setHintsUsed(4)}
+                >
+                  Hint 4 — photo
                 </Button>
               </div>
 

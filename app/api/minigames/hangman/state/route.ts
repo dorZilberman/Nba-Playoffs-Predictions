@@ -18,7 +18,7 @@ const bodySchema = z.object({
   playerId: z.string(),
   guessedLetters: z.array(z.string().length(1)),
   wrong: z.number().int().min(0).max(MAX_WRONG),
-  hintsUsed: z.number().int().min(0).max(3),
+  hintsUsed: z.number().int().min(0).max(4),
   status: z.enum(["playing", "won", "lost"]),
 })
 
@@ -68,7 +68,15 @@ export async function PATCH(request: Request) {
       doc.wrong = wrong
       doc.hintsUsed = hintsUsed
       doc.status = status
-      await doc.save()
+
+      try {
+        await doc.save()
+      } catch (err) {
+        const msg =
+          err instanceof Error ? err.message : "Could not save round state"
+        console.error("[hangman/state] save failed:", err)
+        return NextResponse.json({ error: msg }, { status: 400 })
+      }
 
       return NextResponse.json({ ok: true })
     }

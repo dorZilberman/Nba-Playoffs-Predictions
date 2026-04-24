@@ -48,7 +48,7 @@ const HangmanRoundStateSchema = new Schema<IHangmanRoundState>(
       required: true,
       default: 0,
       min: 0,
-      max: 3,
+      max: 4,
     },
     status: {
       type: String,
@@ -61,6 +61,19 @@ const HangmanRoundStateSchema = new Schema<IHangmanRoundState>(
     timestamps: { createdAt: false, updatedAt: true },
   }
 )
+
+/**
+ * Next.js dev HMR re-imports this module but Mongoose keeps the old compiled
+ * model (e.g. hintsUsed max still 3 after we bump to 4). Drop stale model in
+ * development so schema changes apply without a full server restart.
+ */
+if (process.env.NODE_ENV !== "production") {
+  try {
+    mongoose.deleteModel("HangmanRoundState")
+  } catch {
+    /* model not registered yet */
+  }
+}
 
 const HangmanRoundState: Model<IHangmanRoundState> =
   mongoose.models.HangmanRoundState ||
