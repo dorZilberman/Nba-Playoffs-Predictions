@@ -182,19 +182,20 @@ function MobileGuessCards({
               <p className="mb-2.5 border-b border-border/50 pb-2 text-sm font-semibold leading-snug text-foreground">
                 {gr.guessedName}
               </p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
+              <div className="grid grid-cols-2 items-start gap-2 sm:grid-cols-2">
                 {COLUMNS.map((c) => (
                   <div key={c.key} className="flex min-w-0 flex-col gap-1">
-                    <span className="min-w-0 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    {/* Fixed label band so tiles line up; icon rows match plain text (was ~20px vs ~14px). */}
+                    <div className="flex min-h-5 w-full min-w-0 items-center text-[10px] font-medium uppercase leading-none tracking-wide text-muted-foreground">
                       {c.key === "conference" || c.key === "division" ? (
-                        <span className="inline-flex min-w-0 max-w-full items-center gap-0.5">
+                        <span className="inline-flex w-full min-w-0 max-w-full items-center gap-0.5">
                           <span className="min-w-0 flex-1 truncate">{c.label}</span>
                           <NbaMapInfoButton onOpen={onOpenNbaMap} />
                         </span>
                       ) : (
-                        c.label
+                        <span className="min-w-0 truncate">{c.label}</span>
                       )}
-                    </span>
+                    </div>
                     <GuessAttributeTile
                       text={gr.display[c.key]}
                       fb={gr.feedback[c.key]}
@@ -691,6 +692,7 @@ export function WhoAmIGame({ showTitle = true }: WhoAmIGameProps) {
                   disabled={
                     submitting || round.status !== "playing" || round.guessesUsed >= round.maxGuesses
                   }
+                  hidePlayerHeadshot={round.photoHintUsed}
                 />
                 <div className="flex flex-wrap gap-2 sm:justify-end">
                   <Button

@@ -16,6 +16,8 @@ type WhoAmIPlayerPickerProps = {
   onSubmitPick: (playerId: string) => void
   disabled?: boolean
   id?: string
+  /** After a photo hint, no avatar/initials — name only (avoids matching the hint). */
+  hidePlayerHeadshot?: boolean
 }
 
 export function WhoAmIPlayerPicker({
@@ -26,6 +28,7 @@ export function WhoAmIPlayerPicker({
   onSubmitPick,
   disabled,
   id,
+  hidePlayerHeadshot = false,
 }: WhoAmIPlayerPickerProps) {
   const [open, setOpen] = useState(false)
   const [filter, setFilter] = useState("")
@@ -100,7 +103,9 @@ export function WhoAmIPlayerPicker({
           <span className="flex min-w-0 flex-1 items-center gap-2 text-left">
             {selected ? (
               <>
-                <Head url={selected.photoUrl} name={selected.displayName} />
+                {!hidePlayerHeadshot && (
+                  <Head url={selected.photoUrl} name={selected.displayName} />
+                )}
                 <span className="truncate text-sm">{selected.displayName}</span>
               </>
             ) : (
