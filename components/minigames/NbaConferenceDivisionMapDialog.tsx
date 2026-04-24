@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import type { HangmanPlayer } from "@/app/lib/minigames/types"
+import type { WhoAmIMapExclusions } from "@/app/lib/minigames/whoAmIMapExclusions"
 import { cn } from "@/app/lib/utils/cn"
 import { Info } from "lucide-react"
 import {
@@ -67,10 +68,33 @@ export function useConferenceDivisionTree(players: HangmanPlayer[] | null) {
   }, [players])
 }
 
+const RuledOutHint =
+  "Ruled out for the mystery player by your Team, Conference, or Division column feedback so far"
+
+function isDivisionRuledOut(
+  ex: WhoAmIMapExclusions,
+  tab: ConferenceKey,
+  division: string
+): boolean {
+  if (ex.excludedConferences.has(tab)) return true
+  return ex.excludedDivisions.has(division)
+}
+
+function isTeamRuledOut(
+  ex: WhoAmIMapExclusions,
+  tab: ConferenceKey,
+  division: string,
+  teamName: string
+): boolean {
+  if (isDivisionRuledOut(ex, tab, division)) return true
+  return ex.excludedTeams.has(teamName)
+}
+
 export function NbaConferenceDivisionMapDialog({
   open,
   onOpenChange,
   tree,
+  clueExclusions,
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
@@ -78,24 +102,59 @@ export function NbaConferenceDivisionMapDialog({
     East: { division: string; teams: ConferenceDivisionTeam[] }[]
     West: { division: string; teams: ConferenceDivisionTeam[] }[]
   }
+  /** Optional: mark conferences / divisions / franchises ruled out from grid clues. */
+  clueExclusions?: WhoAmIMapExclusions | null
 }) {
   const [tab, setTab] = useState<ConferenceKey>("East")
   const rows = tab === "East" ? tree.East : tree.West
 
+  const ex: WhoAmIMapExclusions = clueExclusions ?? {
+    excludedConferences: new Set(),
+    excludedDivisions: new Set(),
+    excludedTeams: new Set(),
+  }
+
+  const hasClueNarrowing =
+    ex.excludedConferences.size + ex.excludedDivisions.size + ex.excludedTeams.size > 0
+
+  const eastOut = ex.excludedConferences.has("East")
+  const westOut = ex.excludedConferences.has("West")
+
+  const prevOpen = useRef(false)
   useEffect(() => {
-    if (open) setTab("East")
-  }, [open])
+    if (open && !prevOpen.current) {
+      if (!eastOut) setTab("East")
+      else if (!westOut) setTab("West")
+      else setTab("East")
+    }
+    prevOpen.current = open
+  }, [open, eastOut, westOut])
+
+  useEffect(() => {
+    if (!open) return
+    if (tab === "East" && eastOut && !westOut) setTab("West")
+    if (tab === "West" && westOut && !eastOut) setTab("East")
+  }, [open, tab, eastOut, westOut])
+
+  const tabConflict = eastOut && westOut
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[min(85vh,800px)] w-[calc(100%-1.5rem)] max-w-3xl flex-col overflow-hidden gap-0 p-0">
         <DialogHeader className="shrink-0 space-y-2 border-b border-border/60 bg-muted/20 px-5 py-4 text-left">
-          <DialogTitle className="pr-6 text-base">
-            Conferences and divisions
-          </DialogTitle>
+          <DialogTitle className="pr-6 text-base">Conferences and divisions</DialogTitle>
           <DialogDescription className="text-left text-sm">
-            2025-26 season teams in this game, grouped the same way as the Team,
-            Conference, and Division columns.
+            2025-26 season teams in this game, grouped the same way as the Team, Conference, and
+            Division columns.
+            {hasClueNarrowing ? (
+              <>
+                {" "}
+                <span className="text-foreground/90">
+                  Dimmed entries match locations ruled out from your past guesses (Team /
+                  Conference / Division cells only).
+                </span>
+              </>
+            ) : null}
           </DialogDescription>
         </DialogHeader>
         <div className="shrink-0 border-b border-border/40 bg-muted/10 px-4 py-3">
@@ -103,6 +162,9 @@ export function NbaConferenceDivisionMapDialog({
             aria-label="Choose conference"
             value={tab}
             onChange={setTab}
+            isOptionDisabled={
+              tabConflict ? () => false : (c) => (c === "East" ? eastOut : westOut)
+            }
             className="w-full justify-stretch"
             options={[
               { value: "East", label: "Eastern" },
@@ -115,37 +177,68 @@ export function NbaConferenceDivisionMapDialog({
           role="region"
           aria-label={tab === "East" ? "Eastern conference" : "Western conference"}
         >
-          {rows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No teams loaded for this conference.
+          {tabConflict ? (
+            <p className="text-sm text-destructive" role="status">
+              Conference clues conflict; both conferences look ruled out. Keep guessing in the
+              main grid to refine.
             </p>
+          ) : rows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No teams loaded for this conference.</p>
           ) : (
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              {rows.map(({ division, teams }) => (
-                <div
-                  key={division}
-                  className="flex min-w-0 flex-col gap-2 rounded-lg border border-border/40 bg-muted/15 p-2 sm:p-2.5"
-                >
-                  <h3 className="text-center text-[10px] font-bold uppercase leading-tight tracking-wide text-muted-foreground sm:text-xs">
-                    {division}
-                  </h3>
-                  <ul className="flex min-w-0 flex-col gap-2 sm:gap-2.5">
-                    {teams.map((t) => (
-                      <li
-                        key={t.abbr}
-                        className="min-w-0 border-b border-border/25 pb-2 last:border-0 last:pb-0"
-                      >
-                        <TeamDisplay
-                          teamName={t.name}
-                          size="sm"
-                          showName
-                          className="gap-1.5"
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
+              {rows.map(({ division, teams }) => {
+                const divOut = isDivisionRuledOut(ex, tab, division)
+                return (
+                  <div
+                    key={division}
+                    className={cn(
+                      "flex min-w-0 flex-col gap-2 rounded-lg border border-border/40 bg-muted/15 p-2 sm:p-2.5",
+                      divOut && "bg-muted/5 opacity-45"
+                    )}
+                    title={divOut ? RuledOutHint : undefined}
+                  >
+                    <h3
+                      className={cn(
+                        "text-center text-[10px] font-bold uppercase leading-tight tracking-wide sm:text-xs",
+                        divOut
+                          ? "line-through text-muted-foreground/80"
+                          : "text-muted-foreground"
+                      )}
+                    >
+                      {division}
+                    </h3>
+                    <ul className="flex min-w-0 flex-col gap-2 sm:gap-2.5">
+                      {teams.map((t) => {
+                        const teamOut = isTeamRuledOut(ex, tab, division, t.name)
+                        return (
+                          <li
+                            key={t.abbr}
+                            className={cn(
+                              "min-w-0 border-b border-border/25 pb-2 last:border-0 last:pb-0",
+                              teamOut && "relative"
+                            )}
+                            title={teamOut ? RuledOutHint : undefined}
+                          >
+                            <div
+                              className={cn(
+                                teamOut &&
+                                  "pointer-events-none opacity-40 [filter:grayscale(0.35)]"
+                              )}
+                            >
+                              <TeamDisplay
+                                teamName={t.name}
+                                size="sm"
+                                showName
+                                className="gap-1.5"
+                              />
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>

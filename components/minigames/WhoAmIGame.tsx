@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSession } from "next-auth/react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
@@ -24,6 +24,7 @@ import {
   useConferenceDivisionTree,
 } from "@/components/minigames/NbaConferenceDivisionMapDialog"
 import { cn } from "@/app/lib/utils/cn"
+import { computeWhoAmIMapExclusions } from "@/app/lib/minigames/whoAmIMapExclusions"
 
 type WhoAmISessionPayload = {
   inLobby: boolean
@@ -591,6 +592,11 @@ export function WhoAmIGame({ showTitle = true }: WhoAmIGameProps) {
 
   const guessedIds = new Set(round?.guessRows.map((r) => r.guessedPlayerId) ?? [])
 
+  const whoAmIClueExclusions = useMemo(
+    () => computeWhoAmIMapExclusions(bundle?.players ?? [], round?.guessRows),
+    [bundle?.players, round?.guessRows]
+  )
+
   if (loadError) {
     return (
       <p className="text-sm text-destructive" role="alert">
@@ -912,6 +918,7 @@ export function WhoAmIGame({ showTitle = true }: WhoAmIGameProps) {
         open={nbaMapOpen}
         onOpenChange={setNbaMapOpen}
         tree={conferenceDivisionTree}
+        clueExclusions={round ? whoAmIClueExclusions : null}
       />
 
       <BestStreakLeaderboardCard
