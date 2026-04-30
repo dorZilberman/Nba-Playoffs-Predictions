@@ -14,7 +14,7 @@ import {
 import { WhoAmIPlayerPicker } from "@/components/minigames/WhoAmIPlayerPicker"
 import { BestStreakLeaderboardCard } from "@/components/minigames/BestStreakLeaderboardCard"
 import { cn } from "@/app/lib/utils/cn"
-import { WHO_HE_ROUND_SECONDS } from "@/app/lib/minigames/nowYouSeeMeGame"
+import { NOW_YOU_SEE_ME_ROUND_SECONDS } from "@/app/lib/minigames/nowYouSeeMeGame"
 import { deadlineFieldToIso } from "@/app/lib/minigames/coerceMongoDate"
 import type { BestStreakLeaderboardRow } from "@/app/lib/minigames/bestStreakLeaderboard"
 import type { HangmanPlayer, HangmanPlayerBundle } from "@/app/lib/minigames/types"
@@ -528,10 +528,10 @@ export function NowYouSeeMeGame() {
         <CardHeader className="px-4 sm:px-6">
           <CardTitle className="text-lg sm:text-xl">Now You See Me</CardTitle>
           <CardDescription>
-            Name the player from their photo. You have {WHO_HE_ROUND_SECONDS}{" "}
-            seconds per round; running out of time ends your streak. One wrong
-            guess or give-up resets your streak and returns you here. Correct
-            guesses advance with a new photo.
+            Name the player from their photo. You have one minute per round;
+            running out of time ends your streak. One wrong guess or give-up
+            resets your streak and returns you here. Correct guesses advance with
+            a new photo.
           </CardDescription>
         </CardHeader>
         <CardContent className="px-4 sm:px-6">
@@ -615,7 +615,7 @@ export function NowYouSeeMeGame() {
                     </div>
                     <DrainingTimeBar
                       remainingSec={remainingForUi}
-                      totalSeconds={WHO_HE_ROUND_SECONDS}
+                      totalSeconds={NOW_YOU_SEE_ME_ROUND_SECONDS}
                     />
                   </div>
 

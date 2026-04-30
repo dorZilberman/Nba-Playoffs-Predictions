@@ -4,7 +4,7 @@ import { runApiRoute } from "@/app/lib/logging/runApiRoute"
 import dbConnect from "@/app/lib/db"
 import NowYouSeeMeStats from "@/app/lib/models/NowYouSeeMeStats"
 import { userExistsInDb } from "@/app/lib/utils/userDbGate"
-import { WHO_HE_ROUND_MS } from "@/app/lib/minigames/nowYouSeeMeGame"
+import { NOW_YOU_SEE_ME_ROUND_MS } from "@/app/lib/minigames/nowYouSeeMeGame"
 import { findPlayerById } from "@/app/lib/minigames/whoHePlayForGame"
 import bundleJson from "@/data/minigames/nba-players-2025-26.json"
 import type { HangmanPlayerBundle } from "@/app/lib/minigames/types"
@@ -86,7 +86,7 @@ export async function GET(request: Request) {
     let deadline = coerceMongoDate(doc.roundDeadlineAt)
 
     if (!deadline) {
-      deadline = new Date(Date.now() + WHO_HE_ROUND_MS)
+      deadline = new Date(Date.now() + NOW_YOU_SEE_ME_ROUND_MS)
       await NowYouSeeMeStats.updateOne(
         { _id: doc._id },
         { $set: { roundDeadlineAt: deadline } }

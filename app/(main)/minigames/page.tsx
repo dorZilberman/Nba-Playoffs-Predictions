@@ -47,7 +47,7 @@ export default async function MiniGamesPage() {
           <MiniGameTile
             href="/minigames/now-you-see-me"
             title="Now You See Me"
-            description="Name the player from their photo — timed rounds, streaks, and leaderboard."
+            description="Name the player from their photo — one minute per round, streaks, and leaderboard."
             icon={Eye}
           />
         </li>

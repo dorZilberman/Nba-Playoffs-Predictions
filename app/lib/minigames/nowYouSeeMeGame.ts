@@ -1,10 +1,9 @@
 import type { HangmanPlayer, HangmanPlayerBundle } from "@/app/lib/minigames/types"
-import {
-  WHO_HE_ROUND_MS,
-  WHO_HE_ROUND_SECONDS,
-} from "@/app/lib/minigames/whoHePlayForGame"
 
-export { WHO_HE_ROUND_MS, WHO_HE_ROUND_SECONDS }
+/** Round length for Now You See Me only (Who He Play For keeps its own 30s). */
+export const NOW_YOU_SEE_ME_ROUND_SECONDS = 60
+export const NOW_YOU_SEE_ME_ROUND_MS =
+  NOW_YOU_SEE_ME_ROUND_SECONDS * 1000
 
 export function playersWithPhotos(bundle: HangmanPlayerBundle): HangmanPlayer[] {
   return bundle.players.filter(

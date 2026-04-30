@@ -26,9 +26,9 @@ export default async function NowYouSeeMePage() {
           Now You See Me
         </h1>
         <p className="text-sm text-muted-foreground sm:text-base">
-          Guess each NBA player from their photo before time runs out. Wrong
-          guesses, time-outs, and give-ups reset your streak; best streaks show
-          on the leaderboard below.
+          Guess each NBA player from their photo—you have one minute per round.
+          Wrong guesses, time-outs, and give-ups reset your streak; best streaks
+          show on the leaderboard below.
         </p>
       </div>
 

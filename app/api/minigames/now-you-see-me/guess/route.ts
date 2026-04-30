@@ -6,7 +6,7 @@ import NowYouSeeMeStats from "@/app/lib/models/NowYouSeeMeStats"
 import { userExistsInDb } from "@/app/lib/utils/userDbGate"
 import {
   pickRandomPlayerWithPhoto,
-  WHO_HE_ROUND_MS,
+  NOW_YOU_SEE_ME_ROUND_MS,
 } from "@/app/lib/minigames/nowYouSeeMeGame"
 import { findPlayerById } from "@/app/lib/minigames/whoHePlayForGame"
 import bundleJson from "@/data/minigames/nba-players-2025-26.json"
@@ -144,7 +144,7 @@ export async function POST(request: Request) {
           { status: 500 }
         )
       }
-      const nextDeadline = new Date(Date.now() + WHO_HE_ROUND_MS)
+      const nextDeadline = new Date(Date.now() + NOW_YOU_SEE_ME_ROUND_MS)
       const up = await NowYouSeeMeStats.updateOne(
         { _id: doc._id },
         {

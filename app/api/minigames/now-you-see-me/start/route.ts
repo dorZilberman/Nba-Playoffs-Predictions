@@ -6,7 +6,7 @@ import NowYouSeeMeStats from "@/app/lib/models/NowYouSeeMeStats"
 import { userExistsInDb } from "@/app/lib/utils/userDbGate"
 import {
   pickRandomPlayerWithPhoto,
-  WHO_HE_ROUND_MS,
+  NOW_YOU_SEE_ME_ROUND_MS,
 } from "@/app/lib/minigames/nowYouSeeMeGame"
 import bundleJson from "@/data/minigames/nba-players-2025-26.json"
 import type { HangmanPlayerBundle } from "@/app/lib/minigames/types"
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
 
       doc.pendingPlayerId = player.id
       doc.inLobby = false
-      doc.roundDeadlineAt = new Date(Date.now() + WHO_HE_ROUND_MS)
+      doc.roundDeadlineAt = new Date(Date.now() + NOW_YOU_SEE_ME_ROUND_MS)
       doc.markModified("roundDeadlineAt")
       await doc.save()
 
