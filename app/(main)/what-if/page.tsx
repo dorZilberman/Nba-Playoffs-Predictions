@@ -18,7 +18,6 @@ export default async function WhatIfPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Playoff What If</h1>
       <WhatIfClient />
     </div>
   )

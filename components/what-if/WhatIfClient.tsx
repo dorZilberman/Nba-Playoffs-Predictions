@@ -13,6 +13,14 @@ import {
 } from "@/components/ui/card"
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
+import {
   Table,
   TableBody,
   TableCell,
@@ -321,6 +329,10 @@ export function WhatIfClient() {
   const [sortField, setSortField] = useState<SortField>("totalScore")
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
   const [onlyPaidUsers, setOnlyPaidUsers] = useState(false)
+  /** When set, overrides default “best scenario” target (current user). */
+  const [explicitMostPointsUserId, setExplicitMostPointsUserId] = useState<
+    string | null
+  >(null)
 
   const setHypoForSeries = useCallback(
     (seriesId: string, team1Wins: number, team2Wins: number) => {
@@ -392,6 +404,37 @@ export function WhatIfClient() {
     [eligibleSeries]
   )
 
+  const sortedWhatIfUsers = useMemo(() => {
+    if (!payload) return [] as ApiUser[]
+    return [...payload.users].sort((a, b) =>
+      a.userName.localeCompare(b.userName)
+    )
+  }, [payload])
+
+  const mostPointsTargetUserId = useMemo(() => {
+    if (!payload?.users.length) return null
+    if (
+      explicitMostPointsUserId &&
+      payload.users.some((u) => u.userId === explicitMostPointsUserId)
+    ) {
+      return explicitMostPointsUserId
+    }
+    const my = session?.user?.id
+    if (my && payload.users.some((u) => u.userId === my)) return my
+    return payload.users[0]!.userId
+  }, [payload, explicitMostPointsUserId, session?.user?.id])
+
+  useEffect(() => {
+    if (
+      !payload ||
+      !explicitMostPointsUserId ||
+      payload.users.some((u) => u.userId === explicitMostPointsUserId)
+    ) {
+      return
+    }
+    setExplicitMostPointsUserId(null)
+  }, [payload, explicitMostPointsUserId])
+
   const realCurrentScoreBySeriesId = useMemo(() => {
     if (!payload) {
       return new Map<string, { team1Wins: number; team2Wins: number }>()
@@ -422,25 +465,36 @@ export function WhatIfClient() {
     clearHypoSeries,
   ])
 
-  const myBracketPredictions = useMemo(() => {
-    const uid = session?.user?.id
-    if (!payload || !uid) return []
+  /** Bracket reflects whoever is selected in “Best scenario for”. */
+  const whatIfBracketPredictions = useMemo(() => {
+    if (!payload || !mostPointsTargetUserId) return []
     return payload.predictions
-      .filter((p) => p.userId === uid)
+      .filter((p) => p.userId === mostPointsTargetUserId)
       .map(rowToIPrediction)
-  }, [payload, session?.user?.id])
+  }, [payload, mostPointsTargetUserId])
+
+  const whatIfBracketViewingUserName = useMemo(() => {
+    if (!payload || !mostPointsTargetUserId) return undefined
+    return payload.users.find((u) => u.userId === mostPointsTargetUserId)?.userName
+  }, [payload, mostPointsTargetUserId])
+
+  const isWhatIfBracketViewingOtherUser = Boolean(
+    session?.user?.id &&
+      mostPointsTargetUserId &&
+      mostPointsTargetUserId !== session.user.id
+  )
 
   const applyMostPointsScenario = useCallback(() => {
-    if (!payload || !session?.user?.id) return
+    if (!payload || !mostPointsTargetUserId) return
     setHypoScores(
       buildMostPointsHypoScores({
         series: payload.series,
         predictions: payload.predictions,
-        userId: session.user.id,
+        userId: mostPointsTargetUserId,
         eligibleSeriesIds: new Set(eligibleSeries.map((s) => s._id)),
       })
     )
-  }, [payload, session?.user?.id, eligibleSeries])
+  }, [payload, mostPointsTargetUserId, eligibleSeries])
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -516,40 +570,78 @@ export function WhatIfClient() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <p className="text-sm text-muted-foreground max-w-3xl">
-          Use this page to see how the standings might look if undecided series
-          ended a certain way. Trial scores stay here in your browser—they are
-          not saved and do not change your real bracket picks or the live
-          standings everyone sees. On the playoff bracket, click highlighted
-          matchups (past lock time, no official winner yet) to enter trial
-          scores—the simulated standings update as you go.
-        </p>
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => applyMostPointsScenario()}
-            disabled={!session?.user?.id || eligibleSeries.length === 0}
-            title={
-              !session?.user?.id
-                ? "Sign in to optimize simulated outcomes for your picks"
-                : eligibleSeries.length === 0
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
+          <h1 className="text-3xl font-bold tracking-tight">Playoff What If</h1>
+          <div className="flex w-full min-w-0 flex-col gap-1.5 sm:max-w-xs sm:shrink-0">
+            <Label
+              htmlFor="what-if-most-points-user"
+              className="text-xs text-muted-foreground"
+            >
+              Showing for
+            </Label>
+            <Select
+              value={mostPointsTargetUserId ?? ""}
+              onValueChange={(v) => setExplicitMostPointsUserId(v)}
+            >
+              <SelectTrigger id="what-if-most-points-user" className="h-9 w-full">
+                <SelectValue placeholder="Choose user" />
+              </SelectTrigger>
+              <SelectContent>
+                {sortedWhatIfUsers.map((u) => {
+                  const isCurrentUser =
+                    !!session?.user?.id && u.userId === session.user.id
+                  return (
+                    <SelectItem
+                      key={u.userId}
+                      value={u.userId}
+                      className={cn(
+                        isCurrentUser &&
+                          "bg-primary/10 font-medium text-foreground focus:bg-primary/15 focus:text-foreground data-[highlighted]:bg-primary/15 data-[highlighted]:text-foreground dark:bg-primary/15 dark:focus:bg-primary/20 dark:data-[highlighted]:bg-primary/20"
+                      )}
+                    >
+                      {u.userName}
+                      {isCurrentUser ? " (you)" : ""}
+                    </SelectItem>
+                  )
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <p className="text-sm text-muted-foreground max-w-3xl">
+            Use this page to see how the standings might look if undecided series
+            ended a certain way. Trial scores stay here in your browser—they are
+            not saved and do not change your real bracket picks or the live
+            standings everyone sees. On the playoff bracket, click highlighted
+            matchups (past lock time, no official winner yet) to enter trial
+            scores—the simulated standings update as you go.
+          </p>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => applyMostPointsScenario()}
+              disabled={!mostPointsTargetUserId || eligibleSeries.length === 0}
+              title={
+                eligibleSeries.length === 0
                   ? "No locked, undecided series right now"
-                  : "Fill each open series with the best score you can still get from your prediction (only outcomes possible from the current series record)"
-            }
-          >
-            Most points scenario
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setHypoScores({})}
-            className="gap-2"
-          >
-            <RotateCcw className="h-4 w-4" />
-            Reset simulation
-          </Button>
+                  : "Fill each open series with the best score that user can still get from their predictions (only outcomes possible from the current series record)"
+              }
+            >
+              Most points scenario
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setHypoScores({})}
+              className="gap-2"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Reset simulation
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -629,26 +721,43 @@ export function WhatIfClient() {
                 {sortedStandings.map((row, index) => {
                   const isYou =
                     !!session?.user?.id && row.userId === session.user.id
+                  const isScenarioTarget =
+                    !!mostPointsTargetUserId &&
+                    row.userId === mostPointsTargetUserId
                   return (
                     <TableRow
                       key={row.userId}
                       className={cn(
                         isYou
                           ? "bg-primary/10 hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20 border-l-2 border-l-primary font-semibold"
-                          : undefined
+                          : isScenarioTarget
+                            ? "bg-amber-500/[0.08] hover:bg-amber-500/[0.12] dark:bg-amber-500/10 dark:hover:bg-amber-500/[0.14] border-l-2 border-l-amber-600 dark:border-l-amber-400 font-medium"
+                            : undefined
                       )}
                       data-current-user={isYou || undefined}
+                      data-showing-for={isScenarioTarget && !isYou ? true : undefined}
                     >
                       <TableCell>
                         {totalScoreRanks.get(row.userId) ?? index + 1}
                       </TableCell>
                       <TableCell
-                        className={cn("font-medium", isYou && "font-semibold")}
+                        className={cn(
+                          "font-medium",
+                          isYou && "font-semibold",
+                          isScenarioTarget &&
+                            !isYou &&
+                            "text-amber-950 dark:text-amber-100"
+                        )}
                       >
                         {row.userName}
                         {isYou && (
                           <span className="ml-2 text-xs font-normal text-muted-foreground">
                             (you)
+                          </span>
+                        )}
+                        {isScenarioTarget && !isYou && (
+                          <span className="ml-2 text-xs font-normal text-amber-800 dark:text-amber-200/90">
+                            (showing)
                           </span>
                         )}
                       </TableCell>
@@ -706,11 +815,22 @@ export function WhatIfClient() {
               will show up here when those series exist.
             </p>
           )}
+          {isWhatIfBracketViewingOtherUser && whatIfBracketViewingUserName && (
+            <p className="text-sm text-muted-foreground">
+              Showing{" "}
+              <span className="font-medium text-foreground">
+                {whatIfBracketViewingUserName.split(" ")[0]}&apos;s
+              </span>{" "}
+              submitted bracket picks (same as viewing them on the bracket page).
+            </p>
+          )}
           <PlayoffBracket
             series={displaySeries}
-            predictions={myBracketPredictions}
+            predictions={whatIfBracketPredictions}
             readOnly
             whatIfMode={whatIfMode}
+            isViewingOtherUser={isWhatIfBracketViewingOtherUser}
+            viewingUserName={whatIfBracketViewingUserName}
           />
         </CardContent>
       </Card>
