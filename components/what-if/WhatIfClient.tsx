@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSession } from "next-auth/react"
 import { PlayoffBracket } from "@/components/bracket/PlayoffBracket"
 import { Button } from "@/components/ui/button"
@@ -28,7 +28,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { ArrowUpDown, ArrowUp, ArrowDown, RotateCcw } from "lucide-react"
+import {
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Check,
+  RotateCcw,
+} from "lucide-react"
 import {
   calculatePlayInScore,
   calculateSeriesScore,
@@ -333,6 +339,34 @@ export function WhatIfClient() {
   const [explicitMostPointsUserId, setExplicitMostPointsUserId] = useState<
     string | null
   >(null)
+  const [simulationActionFeedback, setSimulationActionFeedback] = useState<
+    "most-points" | "reset" | null
+  >(null)
+  const simulationFeedbackClearRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  )
+
+  const showSimulationActionFeedback = useCallback(
+    (kind: "most-points" | "reset") => {
+      if (simulationFeedbackClearRef.current) {
+        clearTimeout(simulationFeedbackClearRef.current)
+      }
+      setSimulationActionFeedback(kind)
+      simulationFeedbackClearRef.current = setTimeout(() => {
+        setSimulationActionFeedback(null)
+        simulationFeedbackClearRef.current = null
+      }, 3500)
+    },
+    []
+  )
+
+  useEffect(() => {
+    return () => {
+      if (simulationFeedbackClearRef.current) {
+        clearTimeout(simulationFeedbackClearRef.current)
+      }
+    }
+  }, [])
 
   const setHypoForSeries = useCallback(
     (seriesId: string, team1Wins: number, team2Wins: number) => {
@@ -618,29 +652,54 @@ export function WhatIfClient() {
             matchups (past lock time, no official winner yet) to enter trial
             scores—the simulated standings update as you go.
           </p>
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => applyMostPointsScenario()}
-              disabled={!mostPointsTargetUserId || eligibleSeries.length === 0}
-              title={
-                eligibleSeries.length === 0
-                  ? "No locked, undecided series right now"
-                  : "Fill each open series with the best score that user can still get from their predictions (only outcomes possible from the current series record)"
-              }
-            >
-              Most points scenario
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setHypoScores({})}
-              className="gap-2"
-            >
-              <RotateCcw className="h-4 w-4" />
-              Reset simulation
-            </Button>
+          <div className="flex w-full min-w-0 flex-col gap-1.5 sm:max-w-[min(100%,22rem)] sm:shrink-0 sm:items-end">
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  applyMostPointsScenario()
+                  showSimulationActionFeedback("most-points")
+                }}
+                disabled={!mostPointsTargetUserId || eligibleSeries.length === 0}
+                title={
+                  eligibleSeries.length === 0
+                    ? "No locked, undecided series right now"
+                    : "Fill each open series with the best score that user can still get from their predictions (only outcomes possible from the current series record)"
+                }
+              >
+                Most points scenario
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setHypoScores({})
+                  showSimulationActionFeedback("reset")
+                }}
+                className="gap-2"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Reset simulation
+              </Button>
+            </div>
+            {simulationActionFeedback && (
+              <p
+                role="status"
+                aria-live="polite"
+                className="flex items-center gap-2 text-sm text-muted-foreground sm:justify-end"
+              >
+                <Check
+                  className="h-4 w-4 shrink-0 text-primary"
+                  aria-hidden
+                />
+                <span className="min-w-0 text-left sm:text-right">
+                  {simulationActionFeedback === "most-points"
+                    ? "Most points scenario applied."
+                    : "Simulation reset."}
+                </span>
+              </p>
+            )}
           </div>
         </div>
       </div>
