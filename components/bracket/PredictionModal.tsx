@@ -9,13 +9,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Check, Lock } from "lucide-react"
+import { AlertTriangle, Check, Lock } from "lucide-react"
 import { formatToIST } from "@/app/lib/utils/timezone"
 import { isSeriesLocked } from "@/app/lib/locking/lockChecker"
 import { TeamDisplay } from "@/components/ui/TeamDisplay"
 import { LockCountdown } from "@/components/bracket/LockCountdown"
 import type { ISeries } from "@/app/lib/models/Series"
 import type { IPrediction } from "@/app/lib/models/Prediction"
+import { isFinalScoreFeasibleFromCurrentRecord } from "@/app/lib/what-if/mostPointsScenario"
 
 interface PredictionModalProps {
   series: ISeries
@@ -35,6 +36,12 @@ interface PredictionModalProps {
   /** Pre-fill when reopening the simulator dialog */
   initialSimulatedScore?: { team1Wins: number; team2Wins: number } | null
   onClearSimulation?: () => void
+  /**
+   * Live series record from the API. When set, feasibility warnings and the
+   * “Current score” line use this instead of `series.currentScore` (which may
+   * reflect a previously applied what-if result shown on the bracket).
+   */
+  simulationRealCurrentScore?: { team1Wins: number; team2Wins: number }
 }
 
 export function PredictionModal({
@@ -46,6 +53,7 @@ export function PredictionModal({
   simulationMode = false,
   initialSimulatedScore,
   onClearSimulation,
+  simulationRealCurrentScore,
 }: PredictionModalProps) {
   const locked = simulationMode
     ? false
@@ -175,6 +183,17 @@ export function PredictionModal({
     }
   }
 
+  const baselineCurrent =
+    simulationMode && simulationRealCurrentScore
+      ? simulationRealCurrentScore
+      : series.currentScore
+  const cur1 = baselineCurrent?.team1Wins ?? 0
+  const cur2 = baselineCurrent?.team2Wins ?? 0
+  const simulatedScoreImpossible =
+    simulationMode &&
+    selectedWinner &&
+    !isFinalScoreFeasibleFromCurrentRecord(cur1, cur2, team1Wins, team2Wins)
+
   return (
     <Dialog
       open={isOpen}
@@ -233,12 +252,18 @@ export function PredictionModal({
               const now = new Date()
               const startTime = new Date(series.startTime)
               const isLockedByTime = now >= startTime
-              // Show current score when: series is locked by time (deadline passed)
-              const shouldShowScore = isLockedByTime && series.currentScore !== undefined
-              
+              const scoreRow =
+                simulationMode && simulationRealCurrentScore
+                  ? simulationRealCurrentScore
+                  : series.currentScore
+              const shouldShowScore =
+                isLockedByTime && scoreRow !== undefined
+
               return shouldShowScore ? (
                 <div className="flex max-w-full flex-nowrap items-center gap-x-2 gap-y-1 overflow-x-auto">
-                  <span className="shrink-0 text-muted-foreground">Current Score:</span>
+                  <span className="shrink-0 text-muted-foreground">
+                    {simulationMode ? "Live series score:" : "Current Score:"}
+                  </span>
                   <TeamDisplay
                     teamName={series.team1}
                     size="sm"
@@ -246,7 +271,7 @@ export function PredictionModal({
                     className="shrink-0"
                   />
                   <span className="shrink-0 whitespace-nowrap font-medium tabular-nums text-foreground">
-                    {series.currentScore.team1Wins} – {series.currentScore.team2Wins}
+                    {scoreRow.team1Wins} – {scoreRow.team2Wins}
                   </span>
                   <TeamDisplay
                     teamName={series.team2}
@@ -336,6 +361,23 @@ export function PredictionModal({
                   ? `${series.team1} wins ${team1Wins}-${team2Wins}`
                   : `${series.team2} wins ${team2Wins}-${team1Wins}`}
               </div>
+              {simulatedScoreImpossible && (
+                <div
+                  role="status"
+                  className="mt-3 flex gap-2 rounded-lg border border-amber-500/50 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-950 dark:border-amber-400/40 dark:bg-amber-500/15 dark:text-amber-100"
+                >
+                  <AlertTriangle
+                    className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400"
+                    aria-hidden
+                  />
+                  <p className="min-w-0 leading-snug">
+                    This result can&apos;t happen from the live series score (
+                    {cur1}–{cur2}): a team&apos;s wins can&apos;t go down. You can
+                    still apply it for “what if,” but it isn&apos;t a possible
+                    finish from today&apos;s games played.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

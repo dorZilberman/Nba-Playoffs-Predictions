@@ -35,6 +35,7 @@ import type { ISeries, RoundType } from "@/app/lib/models/Series"
 import type { IPlayInGame, PlayInGameType } from "@/app/lib/models/PlayInGame"
 import type { IPrediction } from "@/app/lib/models/Prediction"
 import { rankByTotalScoreMap } from "@/app/lib/standings/rankByTotalScore"
+import { buildMostPointsHypoScores } from "@/app/lib/what-if/mostPointsScenario"
 
 type HypoScores = Record<string, { team1Wins: number; team2Wins: number }>
 
@@ -391,6 +392,18 @@ export function WhatIfClient() {
     [eligibleSeries]
   )
 
+  const realCurrentScoreBySeriesId = useMemo(() => {
+    if (!payload) {
+      return new Map<string, { team1Wins: number; team2Wins: number }>()
+    }
+    return new Map(
+      payload.series.map((s) => [
+        s._id,
+        s.currentScore ?? { team1Wins: 0, team2Wins: 0 },
+      ])
+    )
+  }, [payload])
+
   const whatIfMode = useMemo(() => {
     if (eligibleSeries.length === 0) return undefined
     return {
@@ -398,11 +411,13 @@ export function WhatIfClient() {
       hypoScores,
       onHypoSelect: setHypoForSeries,
       onHypoClear: clearHypoSeries,
+      realCurrentScoreBySeriesId,
     }
   }, [
     eligibleSeries.length,
     eligibleSeriesIds,
     hypoScores,
+    realCurrentScoreBySeriesId,
     setHypoForSeries,
     clearHypoSeries,
   ])
@@ -414,6 +429,18 @@ export function WhatIfClient() {
       .filter((p) => p.userId === uid)
       .map(rowToIPrediction)
   }, [payload, session?.user?.id])
+
+  const applyMostPointsScenario = useCallback(() => {
+    if (!payload || !session?.user?.id) return
+    setHypoScores(
+      buildMostPointsHypoScores({
+        series: payload.series,
+        predictions: payload.predictions,
+        userId: session.user.id,
+        eligibleSeriesIds: new Set(eligibleSeries.map((s) => s._id)),
+      })
+    )
+  }, [payload, session?.user?.id, eligibleSeries])
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -498,15 +525,32 @@ export function WhatIfClient() {
           matchups (past lock time, no official winner yet) to enter trial
           scores—the simulated standings update as you go.
         </p>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setHypoScores({})}
-          className="shrink-0 gap-2"
-        >
-          <RotateCcw className="h-4 w-4" />
-          Reset simulation
-        </Button>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => applyMostPointsScenario()}
+            disabled={!session?.user?.id || eligibleSeries.length === 0}
+            title={
+              !session?.user?.id
+                ? "Sign in to optimize simulated outcomes for your picks"
+                : eligibleSeries.length === 0
+                  ? "No locked, undecided series right now"
+                  : "Fill each open series with the best score you can still get from your prediction (only outcomes possible from the current series record)"
+            }
+          >
+            Most points scenario
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setHypoScores({})}
+            className="gap-2"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Reset simulation
+          </Button>
+        </div>
       </div>
 
       <Card>

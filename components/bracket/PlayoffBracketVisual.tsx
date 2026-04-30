@@ -17,6 +17,8 @@ export interface WhatIfBracketMode {
   hypoScores: Record<string, { team1Wins: number; team2Wins: number }>
   onHypoSelect: (seriesId: string, team1Wins: number, team2Wins: number) => void
   onHypoClear: (seriesId: string) => void
+  /** Live scores from the server (trial hypotheticals on the bracket use different numbers). */
+  realCurrentScoreBySeriesId: Map<string, { team1Wins: number; team2Wins: number }>
 }
 
 function isWhatIfEligibleSeries(
@@ -956,6 +958,11 @@ export function PlayoffBracketVisual({
               setWhatIfDialogSeries(null)
             }}
             simulationMode
+            simulationRealCurrentScore={
+              whatIfMode.realCurrentScoreBySeriesId.get(
+                String(whatIfDialogSeries._id)
+              ) ?? { team1Wins: 0, team2Wins: 0 }
+            }
             initialSimulatedScore={
               whatIfMode.hypoScores[String(whatIfDialogSeries._id)] ?? null
             }
