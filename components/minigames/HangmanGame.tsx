@@ -709,6 +709,30 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
                 </div>
               </div>
 
+              {status === "won" && (
+                <div className="flex flex-col items-center gap-1.5">
+                  {autoMode &&
+                    autoSecondsLeft !== null &&
+                    autoSecondsLeft > 0 && (
+                      <p
+                        className="text-center text-sm text-muted-foreground tabular-nums"
+                        aria-live="polite"
+                      >
+                        Next player in {autoSecondsLeft}…
+                      </p>
+                    )}
+                  <div className="flex justify-center">
+                    <Button
+                      type="button"
+                      className="min-h-10 w-full max-w-xs sm:w-auto"
+                      onClick={() => void nextPlayer()}
+                    >
+                      Next player
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {showHintsPanel && current && (
                 <div className="rounded-md border bg-muted/40 px-2.5 py-2 text-xs sm:px-3 sm:text-sm space-y-2">
                   {(hintMask & 1) !== 0 && (
@@ -809,31 +833,25 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
                 })}
               </div>
 
-              <div className="flex flex-col items-center gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
-                <Button
-                  type="button"
-                  className="min-h-10 w-full max-w-xs sm:w-auto"
-                  disabled={status !== "won"}
-                  onClick={() => void nextPlayer()}
-                >
-                  Next player
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-h-10 w-full max-w-xs sm:w-auto"
-                  disabled={status !== "playing"}
-                  onClick={() => void giveUp()}
-                >
-                  Give up
-                </Button>
-                <div className="flex w-full max-w-xs flex-row items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5 sm:w-auto sm:min-w-[17rem]">
-                  <div className="flex min-w-0 items-center gap-1.5">
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {status === "playing" && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => void giveUp()}
+                  >
+                    Give up
+                  </Button>
+                )}
+                <div className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2 py-1">
+                  <div className="flex items-center gap-1">
                     <label
                       htmlFor="hangman-auto-mode"
-                      className="cursor-pointer text-sm font-medium leading-none text-foreground"
+                      className="cursor-pointer whitespace-nowrap text-[11px] font-medium leading-none text-foreground sm:text-xs"
                     >
-                      Auto Mode
+                      Auto
                     </label>
                     <Tooltip
                       content={
@@ -849,26 +867,22 @@ export function HangmanGame({ showTitle = true }: HangmanGameProps) {
                     >
                       <button
                         type="button"
-                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                         aria-label="What does Auto Mode do?"
                       >
-                        <Info className="h-4 w-4" aria-hidden />
+                        <Info className="h-3.5 w-3.5" aria-hidden />
                       </button>
                     </Tooltip>
                   </div>
-                  <Switch
-                    id="hangman-auto-mode"
-                    checked={autoMode}
-                    onCheckedChange={setAutoMode}
-                  />
+                  <span className="inline-flex origin-center scale-90">
+                    <Switch
+                      id="hangman-auto-mode"
+                      checked={autoMode}
+                      onCheckedChange={setAutoMode}
+                    />
+                  </span>
                 </div>
               </div>
-
-              {status === "won" && autoMode && autoSecondsLeft !== null && autoSecondsLeft > 0 && (
-                <p className="text-center text-sm text-muted-foreground tabular-nums" aria-live="polite">
-                  Next player in {autoSecondsLeft}…
-                </p>
-              )}
             </>
           )}
         </CardContent>

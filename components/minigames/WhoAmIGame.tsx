@@ -694,7 +694,7 @@ export function WhoAmIGame({ showTitle = true }: WhoAmIGameProps) {
                   }
                   hidePlayerHeadshot={round.photoHintUsed}
                 />
-                <div className="flex flex-wrap gap-2 sm:justify-end">
+                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                   <Button
                     type="button"
                     variant="outline"
@@ -717,6 +717,40 @@ export function WhoAmIGame({ showTitle = true }: WhoAmIGameProps) {
                   >
                     Give up
                   </Button>
+                  <div className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2 py-1">
+                    <div className="flex items-center gap-1">
+                      <label
+                        htmlFor="whoami-auto-mode"
+                        className="cursor-pointer whitespace-nowrap text-[11px] font-medium leading-none text-foreground sm:text-xs"
+                      >
+                        Auto
+                      </label>
+                      <Tooltip
+                        content={
+                          <p className="text-left leading-snug">
+                            After a correct guess, a short countdown loads the next mystery
+                            player automatically. Turn off to advance manually with{" "}
+                            <span className="font-medium">Next player</span>.
+                          </p>
+                        }
+                      >
+                        <button
+                          type="button"
+                          className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          aria-label="What does Auto Mode do?"
+                        >
+                          <Info className="h-3.5 w-3.5" aria-hidden />
+                        </button>
+                      </Tooltip>
+                    </div>
+                    <span className="inline-flex origin-center scale-90">
+                      <Switch
+                        id="whoami-auto-mode"
+                        checked={autoMode}
+                        onCheckedChange={setAutoMode}
+                      />
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -738,37 +772,60 @@ export function WhoAmIGame({ showTitle = true }: WhoAmIGameProps) {
               )}
 
               {round.status === "won" && round.answerPlayer && (
-                <div
-                  className={cn(
-                    "flex flex-col items-center gap-4 rounded-2xl border px-4 py-5 sm:flex-row sm:items-center sm:justify-center sm:gap-8 sm:px-8 sm:py-6",
-                    "border-emerald-500/25 bg-gradient-to-br from-emerald-500/[0.14] via-background to-background",
-                    "shadow-[0_12px_40px_-20px_rgba(16,185,129,0.45)] dark:from-emerald-500/[0.12]"
-                  )}
-                >
-                  {round.answerPlayer.photoUrl ? (
-                    <div className="relative h-32 w-32 shrink-0 overflow-hidden rounded-2xl border border-emerald-500/20 bg-muted shadow-lg ring-4 ring-emerald-500/15 sm:h-36 sm:w-36">
-                      <Image
-                        src={round.answerPlayer.photoUrl}
-                        alt={round.answerPlayer.displayName}
-                        fill
-                        className="object-cover object-top"
-                        sizes="144px"
-                      />
+                <>
+                  <div
+                    className={cn(
+                      "flex flex-col items-center gap-4 rounded-2xl border px-4 py-5 sm:flex-row sm:items-center sm:justify-center sm:gap-8 sm:px-8 sm:py-6",
+                      "border-emerald-500/25 bg-gradient-to-br from-emerald-500/[0.14] via-background to-background",
+                      "shadow-[0_12px_40px_-20px_rgba(16,185,129,0.45)] dark:from-emerald-500/[0.12]"
+                    )}
+                  >
+                    {round.answerPlayer.photoUrl ? (
+                      <div className="relative h-32 w-32 shrink-0 overflow-hidden rounded-2xl border border-emerald-500/20 bg-muted shadow-lg ring-4 ring-emerald-500/15 sm:h-36 sm:w-36">
+                        <Image
+                          src={round.answerPlayer.photoUrl}
+                          alt={round.answerPlayer.displayName}
+                          fill
+                          className="object-cover object-top"
+                          sizes="144px"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex h-32 w-32 shrink-0 items-center justify-center rounded-2xl border border-dashed border-emerald-500/30 bg-muted/50 text-xs text-muted-foreground sm:h-36 sm:w-36">
+                        No photo
+                      </div>
+                    )}
+                    <div className="min-w-0 text-center sm:text-left">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400">
+                        Correct
+                      </p>
+                      <p className="mt-1 text-balance text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+                        {round.answerPlayer.displayName}
+                      </p>
                     </div>
-                  ) : (
-                    <div className="flex h-32 w-32 shrink-0 items-center justify-center rounded-2xl border border-dashed border-emerald-500/30 bg-muted/50 text-xs text-muted-foreground sm:h-36 sm:w-36">
-                      No photo
-                    </div>
-                  )}
-                  <div className="min-w-0 text-center sm:text-left">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400">
-                      Correct
-                    </p>
-                    <p className="mt-1 text-balance text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-                      {round.answerPlayer.displayName}
-                    </p>
                   </div>
-                </div>
+                  <div className="flex flex-col items-center gap-1.5">
+                    {autoMode &&
+                      autoSecondsLeft !== null &&
+                      autoSecondsLeft > 0 && (
+                        <p
+                          className="text-center text-sm text-muted-foreground tabular-nums"
+                          aria-live="polite"
+                        >
+                          Next player in {autoSecondsLeft}…
+                        </p>
+                      )}
+                    <div className="flex w-full justify-center">
+                      <Button
+                        type="button"
+                        className="min-h-10 w-full max-w-xs"
+                        onClick={() => void nextPlayer()}
+                      >
+                        Next player
+                      </Button>
+                    </div>
+                  </div>
+                </>
               )}
 
               <MobileGuessCards
@@ -857,58 +914,6 @@ export function WhoAmIGame({ showTitle = true }: WhoAmIGameProps) {
               {round.status === "playing" && (
                 <p className="text-xs text-muted-foreground text-center sm:text-left">
                   Guesses used: {round.guessesUsed} / {round.maxGuesses}
-                </p>
-              )}
-
-              <div className="flex flex-col items-center gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
-                <Button
-                  type="button"
-                  className="min-h-10 w-full max-w-xs sm:w-auto"
-                  disabled={round.status !== "won"}
-                  onClick={() => void nextPlayer()}
-                >
-                  Next player
-                </Button>
-                <div className="flex w-full max-w-xs flex-row items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5 sm:w-auto sm:min-w-[17rem]">
-                  <div className="flex min-w-0 items-center gap-1.5">
-                    <label
-                      htmlFor="whoami-auto-mode"
-                      className="cursor-pointer text-sm font-medium leading-none text-foreground"
-                    >
-                      Auto Mode
-                    </label>
-                    <Tooltip
-                      content={
-                        <p className="text-left leading-snug">
-                          After a correct guess, a short countdown loads the next mystery
-                          player automatically. Turn off to advance manually with{" "}
-                          <span className="font-medium">Next player</span>.
-                        </p>
-                      }
-                    >
-                      <button
-                        type="button"
-                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        aria-label="What does Auto Mode do?"
-                      >
-                        <Info className="h-4 w-4" aria-hidden />
-                      </button>
-                    </Tooltip>
-                  </div>
-                  <Switch
-                    id="whoami-auto-mode"
-                    checked={autoMode}
-                    onCheckedChange={setAutoMode}
-                  />
-                </div>
-              </div>
-
-              {round.status === "won" && autoMode && autoSecondsLeft !== null && autoSecondsLeft > 0 && (
-                <p
-                  className="text-center text-sm text-muted-foreground tabular-nums"
-                  aria-live="polite"
-                >
-                  Next player in {autoSecondsLeft}…
                 </p>
               )}
             </>
