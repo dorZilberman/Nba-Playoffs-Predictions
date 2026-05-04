@@ -1,6 +1,7 @@
 import NextAuth, { DefaultSession } from "next-auth"
 import Google from "next-auth/providers/google"
 import dbConnect from "./db"
+import Season from "./models/Season"
 import User from "./models/User"
 
 declare module "next-auth" {
@@ -47,10 +48,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
       await dbConnect()
 
-      // Check if user exists, if not create them
+      // Check if user exists, if not create them (when allowed)
       let dbUser = await User.findOne({ email: user.email })
 
       if (!dbUser) {
+        const season = await Season.findOne({ isActive: true }).lean()
+        const allowNewUsers = season?.allowNewUsersToJoin !== false
+        if (!allowNewUsers) {
+          return false
+        }
+
         // Check if this is the admin user
         const isAdmin = user.email === process.env.ADMIN_EMAIL
 
@@ -82,5 +89,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   pages: {
     signIn: "/signin",
+    /** Replaces default error UI (which offers “Sign in” again after denial). */
+    error: "/auth/error",
   },
 })

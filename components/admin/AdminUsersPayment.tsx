@@ -1,14 +1,10 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-} from "@/components/ui/card"
+import { AdminCollapsibleCard } from "@/components/admin/AdminCollapsibleCard"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import {
   Select,
   SelectContent,
@@ -123,6 +119,9 @@ export function AdminUsersPayment() {
   const [users, setUsers] = useState<AdminUserRow[]>([])
   const [savingId, setSavingId] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<SortBy>("createdAt")
+  const [allowNewUsersToJoin, setAllowNewUsersToJoin] = useState(true)
+  const [joinPolicyLoaded, setJoinPolicyLoaded] = useState(false)
+  const [savingJoinPolicy, setSavingJoinPolicy] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -130,21 +129,33 @@ export function AdminUsersPayment() {
     try {
       const res = await fetch("/api/admin/users", { cache: "no-store" })
       if (!res.ok) throw new Error("Failed to load users")
-      const data = (await res.json()) as AdminUserRow[]
-      setUsers(
-        Array.isArray(data)
-          ? data.map((row) => ({
-              ...row,
-              roundCompletion: row.roundCompletion ?? {
-                earlyFinals: null,
-                playIn: null,
-                first: null,
-                second: null,
-                conference: null,
-                finals: null,
-              },
-            }))
+      const raw = (await res.json()) as
+        | AdminUserRow[]
+        | {
+            users: AdminUserRow[]
+            allowNewUsersToJoin?: boolean
+          }
+      const rows: AdminUserRow[] = Array.isArray(raw)
+        ? raw
+        : Array.isArray(raw.users)
+          ? raw.users
           : []
+      const allow =
+        Array.isArray(raw) ? true : raw.allowNewUsersToJoin !== false
+      setAllowNewUsersToJoin(allow)
+      setJoinPolicyLoaded(true)
+      setUsers(
+        rows.map((row) => ({
+          ...row,
+          roundCompletion: row.roundCompletion ?? {
+            earlyFinals: null,
+            playIn: null,
+            first: null,
+            second: null,
+            conference: null,
+            finals: null,
+          },
+        }))
       )
     } catch {
       setError("Could not load users.")
@@ -194,10 +205,39 @@ export function AdminUsersPayment() {
     }
   }
 
+  const setAllowNewUsersToJoinPolicy = async (next: boolean) => {
+    setSavingJoinPolicy(true)
+    setError(null)
+    try {
+      const res = await fetch("/api/admin/season", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ allowNewUsersToJoin: next }),
+        cache: "no-store",
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(
+          typeof body?.error === "string" ? body.error : "Update failed"
+        )
+      }
+      if (typeof body.allowNewUsersToJoin === "boolean") {
+        setAllowNewUsersToJoin(body.allowNewUsersToJoin)
+      } else {
+        setAllowNewUsersToJoin(next)
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Update failed")
+    } finally {
+      setSavingJoinPolicy(false)
+    }
+  }
+
   return (
-    <Card>
-      <CardHeader>
-        <CardDescription className="space-y-1">
+    <AdminCollapsibleCard
+      title="Users"
+      description={
+        <div className="space-y-1">
           {loading ? (
             <span className="block font-medium text-foreground">
               Loading user list…
@@ -217,14 +257,69 @@ export function AdminUsersPayment() {
             no winner, before start time). “—” means no open games in that round
             or the round does not apply (e.g. early finals after lock).
           </span>
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+        </div>
+      }
+      contentClassName="space-y-4"
+    >
         {error && (
           <p className="text-sm text-destructive" role="alert">
             {error}
           </p>
         )}
+        <div className="rounded-lg border bg-muted/40 px-3 py-2.5 sm:px-4">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <p className="text-sm font-medium text-foreground">
+                Allow new users to join
+              </p>
+              <p className="text-[11px] leading-snug text-muted-foreground text-pretty sm:text-xs">
+                Off = Google sign-in only for emails already listed here. On =
+                new accounts can be created. Existing users are always unaffected.
+              </p>
+            </div>
+            <div
+              className="flex shrink-0 items-center gap-2 rounded-md border border-border/60 bg-background/50 px-2 py-1.5"
+              aria-live="polite"
+            >
+              <span
+                className={`text-[11px] font-medium tabular-nums sm:text-xs ${
+                  joinPolicyLoaded && !allowNewUsersToJoin
+                    ? "text-foreground"
+                    : "text-muted-foreground"
+                }`}
+              >
+                No
+              </span>
+              <span className="inline-flex origin-center scale-90">
+                <Switch
+                  id="admin-allow-new-users"
+                  checked={allowNewUsersToJoin}
+                  onCheckedChange={(v) => void setAllowNewUsersToJoinPolicy(v)}
+                  disabled={savingJoinPolicy || !joinPolicyLoaded}
+                  aria-label={
+                    savingJoinPolicy
+                      ? "Saving allow new users setting"
+                      : allowNewUsersToJoin
+                        ? "Allow new users: yes. Click to set no."
+                        : "Allow new users: no. Click to set yes."
+                  }
+                />
+              </span>
+              <span
+                className={`text-[11px] font-medium tabular-nums sm:text-xs ${
+                  joinPolicyLoaded && allowNewUsersToJoin
+                    ? "text-foreground"
+                    : "text-muted-foreground"
+                }`}
+              >
+                Yes
+              </span>
+              {savingJoinPolicy && (
+                <span className="text-[11px] text-muted-foreground">Saving…</span>
+              )}
+            </div>
+          </div>
+        </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-2">
             <Label htmlFor="admin-users-sort" className="text-sm whitespace-nowrap">
@@ -317,7 +412,6 @@ export function AdminUsersPayment() {
             </Table>
           </div>
         )}
-      </CardContent>
-    </Card>
+    </AdminCollapsibleCard>
   )
 }

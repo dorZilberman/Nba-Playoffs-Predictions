@@ -130,7 +130,10 @@ export async function GET(request: NextRequest) {
         }
       })
 
-      return NextResponse.json(payload)
+      const allowNewUsersToJoin =
+        (seasonRaw?.allowNewUsersToJoin as boolean | undefined) !== false
+
+      return NextResponse.json({ users: payload, allowNewUsersToJoin })
     } catch (error) {
       console.error("Error listing users:", error)
       return NextResponse.json(

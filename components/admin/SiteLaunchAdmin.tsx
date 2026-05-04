@@ -1,13 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { AdminCollapsibleCard } from "@/components/admin/AdminCollapsibleCard"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 
@@ -86,19 +80,20 @@ export function SiteLaunchAdmin() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Site launch</CardTitle>
-        <CardDescription>
+    <AdminCollapsibleCard
+      title="Site launch"
+      description={
+        <>
           Until this time, signed-in users who are not admins only see the launch
           countdown (and can open Rules). Clear the field and save to disable.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4 max-w-md">
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
-        ) : (
-          <>
+        </>
+      }
+      contentClassName="space-y-4 max-w-md"
+    >
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : (
+        <>
             <div className="space-y-2">
               <Label htmlFor="site-launch">Launch time (local)</Label>
               <input
@@ -124,7 +119,6 @@ export function SiteLaunchAdmin() {
             </Button>
           </>
         )}
-      </CardContent>
-    </Card>
+    </AdminCollapsibleCard>
   )
 }

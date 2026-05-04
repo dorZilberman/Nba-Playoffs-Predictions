@@ -119,7 +119,12 @@ export async function middleware(request: NextRequest) {
     )
   }
 
-  if (path === "/signin" || path === "/launch" || path === "/rules") {
+  if (
+    path === "/signin" ||
+    path === "/auth/error" ||
+    path === "/launch" ||
+    path === "/rules"
+  ) {
     return nextWithHeaders()
   }
 

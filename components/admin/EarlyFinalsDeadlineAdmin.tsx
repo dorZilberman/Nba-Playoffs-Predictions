@@ -1,13 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { AdminCollapsibleCard } from "@/components/admin/AdminCollapsibleCard"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 
@@ -107,20 +101,21 @@ export function EarlyFinalsDeadlineAdmin() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Season timing</CardTitle>
-        <CardDescription>
+    <AdminCollapsibleCard
+      title="Season timing"
+      description={
+        <>
           Playoffs start locks Early Finals picks and opens the What-if page at
           that instant. Play-in start opens the Analytics page at that instant.
           Clear a field and save to remove that gate until you set a new time.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6 max-w-md">
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
-        ) : (
-          <>
+        </>
+      }
+      contentClassName="space-y-6 max-w-md"
+    >
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : (
+        <>
             <div className="space-y-2">
               <Label htmlFor="playoffs-start">Playoffs start (lock + What-if)</Label>
               <input
@@ -178,7 +173,6 @@ export function EarlyFinalsDeadlineAdmin() {
             </div>
           </>
         )}
-      </CardContent>
-    </Card>
+    </AdminCollapsibleCard>
   )
 }

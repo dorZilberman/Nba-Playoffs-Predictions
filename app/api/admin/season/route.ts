@@ -14,6 +14,8 @@ const patchSeasonSchema = z.object({
   playInStartTime: z.union([z.string().min(1), z.null()]).optional(),
   /** ISO datetime or null — non-admins limited to /launch and /rules until this instant */
   siteLaunchTime: z.union([z.string().min(1), z.null()]).optional(),
+  /** When false, sign-in does not create new User rows (existing emails only). */
+  allowNewUsersToJoin: z.boolean().optional(),
 })
 
 /** Raw MongoDB season document (from Season.collection) */
@@ -25,6 +27,7 @@ type SeasonCollectionDoc = {
   playoffsStartTime?: unknown
   playInStartTime?: unknown
   siteLaunchTime?: unknown
+  allowNewUsersToJoin?: unknown
 }
 
 function isoFromRaw(raw: unknown): string | null {
@@ -56,6 +59,7 @@ function serializeSeason(season: SeasonCollectionDoc) {
     playoffsStartTime,
     playInStartTime,
     siteLaunchTime,
+    allowNewUsersToJoin: season.allowNewUsersToJoin !== false,
   }
 }
 
@@ -104,7 +108,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const parsed = patchSeasonSchema.parse(body)
 
-    const $set: Record<string, Date> = {}
+    const $set: Record<string, unknown> = {}
     const $unset: Record<string, string> = {}
 
     if (parsed.playoffsStartTime !== undefined) {
@@ -150,6 +154,10 @@ export async function PATCH(request: NextRequest) {
         }
         $set.siteLaunchTime = d
       }
+    }
+
+    if (parsed.allowNewUsersToJoin !== undefined) {
+      $set.allowNewUsersToJoin = parsed.allowNewUsersToJoin
     }
 
     const updateDoc: Record<string, unknown> = {}

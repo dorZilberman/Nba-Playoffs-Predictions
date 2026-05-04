@@ -24,13 +24,7 @@ export default async function AdminPage() {
 
       <SiteLaunchAdmin />
 
-      <section className="space-y-3" aria-labelledby="admin-users-heading">
-        <h2
-          id="admin-users-heading"
-          className="text-2xl font-semibold scroll-mt-4"
-        >
-          Users
-        </h2>
+      <section className="space-y-3 scroll-mt-4" aria-label="Users">
         <AdminUsersPayment />
       </section>
 

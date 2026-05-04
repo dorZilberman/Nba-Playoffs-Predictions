@@ -12,6 +12,11 @@ export interface ISeason {
   playInStartTime?: Date
   /** Non-admins use /launch + /rules only until this instant. */
   siteLaunchTime?: Date
+  /**
+   * When false, Google sign-in succeeds only for emails already in the User
+   * collection; new accounts are not created. Default true when unset.
+   */
+  allowNewUsersToJoin?: boolean
   createdAt: Date
 }
 
@@ -34,6 +39,10 @@ const SeasonSchema = new Schema<ISeason>(
     },
     siteLaunchTime: {
       type: Date,
+    },
+    allowNewUsersToJoin: {
+      type: Boolean,
+      default: true,
     },
     createdAt: {
       type: Date,
