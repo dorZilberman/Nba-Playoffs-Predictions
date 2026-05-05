@@ -13,7 +13,7 @@ import {
 } from "./PredictionTodoSection"
 import { CollapsibleSection } from "@/components/ui/collapsible-section"
 import { PlayInPredictionModal } from "./PlayInPredictionModal"
-import { useState, useCallback, useMemo } from "react"
+import { useState, useCallback, useMemo, useEffect } from "react"
 import type { ISeries } from "@/app/lib/models/Series"
 import type { IPlayInGame } from "@/app/lib/models/PlayInGame"
 import type { IPrediction } from "@/app/lib/models/Prediction"
@@ -166,6 +166,12 @@ export function NBABracketView({
       ),
     [series]
   )
+
+  const [playoffsOpen, setPlayoffsOpen] = useState(playoffsSectionDefaultOpen)
+
+  useEffect(() => {
+    setPlayoffsOpen(playoffsSectionDefaultOpen)
+  }, [playoffsSectionDefaultOpen])
 
   const handlePredictionSave = async (prediction: {
     seriesId: string
@@ -363,9 +369,10 @@ export function NBABracketView({
       <CollapsibleSection
         id="bracket-section-playoffs"
         className="scroll-mt-20"
-        key={`playoffs-${playoffsSectionDefaultOpen}`}
         title="Playoffs"
         headerRight={sectionPointsHeader(playoffsPointsTotal)}
+        open={playoffsOpen}
+        onOpenChange={setPlayoffsOpen}
         defaultOpen={playoffsSectionDefaultOpen}
       >
         <PlayoffBracket
@@ -377,6 +384,7 @@ export function NBABracketView({
           viewingUserName={isViewingOtherUser ? viewingUserName : undefined}
           openSeriesRequest={playoffOpenSeriesRequest}
           onOpenSeriesRequestHandled={clearPlayoffOpenSeriesRequest}
+          playoffsSectionExpanded={playoffsOpen}
         />
       </CollapsibleSection>
 

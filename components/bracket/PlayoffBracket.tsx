@@ -40,6 +40,8 @@ interface PlayoffBracketProps {
   /** Open Predictions: open prediction modal for this series (token changes each request). */
   openSeriesRequest?: { seriesId: string; token: number } | null
   onOpenSeriesRequestHandled?: () => void
+  /** When true (bracket page Playoffs section expanded), mobile picks a round by next/last lock time. */
+  playoffsSectionExpanded?: boolean
 }
 
 export function PlayoffBracket({
@@ -53,6 +55,7 @@ export function PlayoffBracket({
   embedded = false,
   openSeriesRequest,
   onOpenSeriesRequestHandled,
+  playoffsSectionExpanded,
 }: PlayoffBracketProps) {
   return (
     <PlayoffBracketVisual
@@ -66,6 +69,7 @@ export function PlayoffBracket({
       embedded={embedded}
       openSeriesRequest={openSeriesRequest}
       onOpenSeriesRequestHandled={onOpenSeriesRequestHandled}
+      playoffsSectionExpanded={playoffsSectionExpanded}
     />
   )
 }

@@ -9,6 +9,9 @@ type CollapsibleSectionProps = {
   /** Shown to the left of the chevron (e.g. section points). */
   headerRight?: ReactNode
   defaultOpen?: boolean
+  /** Controlled open state. When set, `defaultOpen` is only used before first render of uncontrolled mode. */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
   children: ReactNode
   className?: string
   contentClassName?: string
@@ -20,12 +23,24 @@ export function CollapsibleSection({
   title,
   headerRight,
   defaultOpen = true,
+  open: controlledOpen,
+  onOpenChange,
   children,
   className,
   contentClassName,
   id,
 }: CollapsibleSectionProps) {
-  const [open, setOpen] = useState(defaultOpen)
+  const [internalOpen, setInternalOpen] = useState(defaultOpen)
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen : internalOpen
+
+  const toggle = () => {
+    const next = !open
+    if (!isControlled) {
+      setInternalOpen(next)
+    }
+    onOpenChange?.(next)
+  }
 
   return (
     <div
@@ -37,7 +52,7 @@ export function CollapsibleSection({
     >
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
         className="flex w-full min-w-0 items-center gap-3 px-4 py-3 md:px-6 md:py-4 text-left hover:bg-muted/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         aria-expanded={open}
       >

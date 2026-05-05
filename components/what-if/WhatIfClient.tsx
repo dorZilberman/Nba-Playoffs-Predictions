@@ -884,6 +884,8 @@ export function WhatIfClient() {
             </p>
           )}
           <PlayoffBracket
+            embedded
+            playoffsSectionExpanded
             series={displaySeries}
             predictions={whatIfBracketPredictions}
             readOnly

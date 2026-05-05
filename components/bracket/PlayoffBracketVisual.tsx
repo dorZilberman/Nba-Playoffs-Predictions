@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { PredictionModal } from "./PredictionModal"
@@ -11,6 +11,11 @@ import { cn } from "@/app/lib/utils/cn"
 import type { ISeries } from "@/app/lib/models/Series"
 import type { IPrediction } from "@/app/lib/models/Prediction"
 import { calculateSeriesScore } from "@/app/lib/scoring/calculator"
+import {
+  computeSeriesSig,
+  pickMobilePlayoffRound,
+  type SeriesForRoundSnap,
+} from "@/components/bracket/mobilePlayoffRound"
 
 export interface WhatIfBracketMode {
   eligibleSeriesIds: Set<string>
@@ -178,6 +183,8 @@ interface PlayoffBracketVisualProps {
   /** Open Predictions: programmatically open the prediction modal for a series. */
   openSeriesRequest?: { seriesId: string; token: number } | null
   onOpenSeriesRequestHandled?: () => void
+  /** Bracket page: when Playoffs collapsible is open, mobile selects the round with the nearest lock time (no scroll). */
+  playoffsSectionExpanded?: boolean
 }
 
 
@@ -194,6 +201,7 @@ export function PlayoffBracketVisual({
   embedded = false,
   openSeriesRequest,
   onOpenSeriesRequestHandled,
+  playoffsSectionExpanded,
 }: PlayoffBracketVisualProps) {
   const [selectedSeries, setSelectedSeries] = useState<Series | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -201,6 +209,39 @@ export function PlayoffBracketVisual({
     null
   )
   const [selectedRound, setSelectedRound] = useState<"first" | "second" | "conference" | "finals">("first")
+
+  const lastPlayoffsExpandedRef = useRef(false)
+  const lastSeriesSigRef = useRef("")
+
+  useEffect(() => {
+    if (!embedded || !playoffsSectionExpanded) {
+      if (!playoffsSectionExpanded) {
+        lastPlayoffsExpandedRef.current = false
+      }
+      const sig = computeSeriesSig(series as SeriesForRoundSnap[])
+      lastSeriesSigRef.current = sig
+      return
+    }
+    if (typeof window === "undefined") return
+    if (!window.matchMedia("(max-width: 767px)").matches) {
+      lastSeriesSigRef.current = computeSeriesSig(series as SeriesForRoundSnap[])
+      lastPlayoffsExpandedRef.current = true
+      return
+    }
+
+    const sig = computeSeriesSig(series as SeriesForRoundSnap[])
+    const becameExpanded =
+      !lastPlayoffsExpandedRef.current && playoffsSectionExpanded
+    const gotFirstRealData =
+      lastSeriesSigRef.current === "" && sig !== "" && playoffsSectionExpanded
+
+    if (becameExpanded || gotFirstRealData) {
+      setSelectedRound(pickMobilePlayoffRound(series as SeriesForRoundSnap[]))
+    }
+
+    lastPlayoffsExpandedRef.current = playoffsSectionExpanded
+    lastSeriesSigRef.current = sig
+  }, [embedded, playoffsSectionExpanded, series])
 
   const handleSeriesClick = useCallback(
     (s: Series) => {
@@ -640,7 +681,10 @@ export function PlayoffBracketVisual({
       )}
 
       {/* Round Selector Buttons (Mobile Only) */}
-      <div className="md:hidden mb-4 flex gap-2 overflow-x-auto pb-2">
+      <div
+        id="bracket-mobile-playoff-round"
+        className="md:hidden mb-4 flex scroll-mt-24 gap-2 overflow-x-auto pb-2"
+      >
         {roundButtons.map((btn) => (
           <Button
             key={btn.value}
