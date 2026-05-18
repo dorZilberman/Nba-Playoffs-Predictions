@@ -13,6 +13,12 @@ import {
   isWhatIfAvailable,
   seasonRawToPlayoffsInput,
 } from "@/app/lib/locking/earlyFinalsLock"
+import {
+  isPlayInGameLocked,
+  isSeriesLocked,
+} from "@/app/lib/locking/lockChecker"
+import type { ISeries } from "@/app/lib/models/Series"
+import type { IPlayInGame } from "@/app/lib/models/PlayInGame"
 
 export interface WhatIfUser {
   userId: string
@@ -125,6 +131,7 @@ export async function GET(request: NextRequest) {
 
     for (const p of allPredictions as any[]) {
       const uid = p.userId?.toString?.() ?? String(p.userId)
+      const isOwnPrediction = uid === user.id
 
       if (p.seriesId) {
         const sid =
@@ -133,6 +140,13 @@ export async function GET(request: NextRequest) {
             : p.seriesId.toString()
         const series = seriesById.get(sid)
         if (!series) continue
+        if (
+          !isOwnPrediction &&
+          !series.winner &&
+          !isSeriesLocked(series as ISeries)
+        ) {
+          continue
+        }
         predictionsOut.push({
           userId: uid,
           seriesId: sid,
@@ -151,6 +165,13 @@ export async function GET(request: NextRequest) {
             : p.playInGameId.toString()
         const game = playInById.get(gid)
         if (!game) continue
+        if (
+          !isOwnPrediction &&
+          !game.winner &&
+          !isPlayInGameLocked(game as IPlayInGame)
+        ) {
+          continue
+        }
         predictionsOut.push({
           userId: uid,
           playInGameId: gid,
