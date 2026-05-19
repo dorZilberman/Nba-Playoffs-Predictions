@@ -2,6 +2,34 @@ import { calculateSeriesScore } from "@/app/lib/scoring/calculator"
 import type { IPrediction } from "@/app/lib/models/Prediction"
 import type { ConferenceType, ISeries, RoundType } from "@/app/lib/models/Series"
 
+/**
+ * Per-series bonus, in points, that the user's Early Finals prediction would
+ * earn if the given series ended with `winnerTeam`. Mirrors the rules in
+ * `calculateEarlyFinalsScore` (5 per correct conference finalist, +5 if the
+ * NBA champion is correct). Returns 0 for first/second-round series since
+ * those don't feed Early Finals scoring.
+ */
+function earlyFinalsBonusForOutcome(
+  series: { round: RoundType; conference: ConferenceType },
+  winnerTeam: string,
+  earlyFinals: MostPointsEarlyFinalsInput | null | undefined
+): number {
+  if (!earlyFinals) return 0
+  if (series.round === "conference") {
+    if (series.conference === "east" && earlyFinals.eastFinalist === winnerTeam) {
+      return 5
+    }
+    if (series.conference === "west" && earlyFinals.westFinalist === winnerTeam) {
+      return 5
+    }
+    return 0
+  }
+  if (series.round === "finals") {
+    return earlyFinals.nbaChampion === winnerTeam ? 5 : 0
+  }
+  return 0
+}
+
 /** All valid best-of-7 ending records (wins, wins). */
 const VALID_FINALS: readonly (readonly [number, number])[] = [
   [4, 0],
@@ -64,6 +92,43 @@ function pickShortestFeasible(
     if (g < bestGames) {
       best = h
       bestGames = g
+    }
+  }
+  return best
+}
+
+/**
+ * For series with no per-series prediction (no `predictedWinner` recorded):
+ * still maximize Early Finals points if the series is a conference final or
+ * the Finals, then pick the fewest-games ending. Otherwise just shortest.
+ */
+function pickBestForEarlyFinalsOrShortest(
+  series: { round: RoundType; conference: ConferenceType; team1: string; team2: string },
+  feasible: { team1Wins: number; team2Wins: number }[],
+  earlyFinals: MostPointsEarlyFinalsInput | null | undefined
+): { team1Wins: number; team2Wins: number } {
+  if (feasible.length === 0) return { team1Wins: 4, team2Wins: 0 }
+  const efRelevant =
+    !!earlyFinals && (series.round === "conference" || series.round === "finals")
+  if (!efRelevant) return pickShortestFeasible(feasible)
+
+  let best = feasible[0]!
+  let bestBonus = earlyFinalsBonusForOutcome(
+    series,
+    best.team1Wins === 4 ? series.team1 : series.team2,
+    earlyFinals
+  )
+  let bestGames = best.team1Wins + best.team2Wins
+
+  for (let i = 1; i < feasible.length; i++) {
+    const h = feasible[i]!
+    const winnerTeam = h.team1Wins === 4 ? series.team1 : series.team2
+    const bonus = earlyFinalsBonusForOutcome(series, winnerTeam, earlyFinals)
+    const games = h.team1Wins + h.team2Wins
+    if (bonus > bestBonus || (bonus === bestBonus && games < bestGames)) {
+      best = h
+      bestBonus = bonus
+      bestGames = games
     }
   }
   return best
@@ -135,7 +200,8 @@ function bestOutcomeForUserPrediction(
   predRow: {
     predictedWinner: string
     predictedScore?: { team1Wins: number; team2Wins: number }
-  }
+  },
+  earlyFinals: MostPointsEarlyFinalsInput | null | undefined
 ): { team1Wins: number; team2Wins: number } {
   const feasible = enumerateFeasibleFinalScores(
     current.team1Wins,
@@ -146,7 +212,7 @@ function bestOutcomeForUserPrediction(
   }
 
   if (!predRow.predictedScore) {
-    return pickShortestFeasible(feasible)
+    return pickBestForEarlyFinalsOrShortest(series, feasible, earlyFinals)
   }
 
   const pred = rowToPrediction(predRow)
@@ -154,13 +220,15 @@ function bestOutcomeForUserPrediction(
   const tieKey = (fin: { team1Wins: number; team2Wins: number }) => {
     const syn = toCompletedISeries(series, fin)
     const { points, breakdown } = calculateSeriesScore(pred, syn, series.round)
+    const winnerTeam = fin.team1Wins === 4 ? series.team1 : series.team2
+    const efBonus = earlyFinalsBonusForOutcome(series, winnerTeam, earlyFinals)
     const ex =
       pred.predictedScore != null &&
       fin.team1Wins === pred.predictedScore.team1Wins &&
       fin.team2Wins === pred.predictedScore.team2Wins
     const games = fin.team1Wins + fin.team2Wins
     const penalty = breakdown?.penalty ?? 0
-    return { points, ex, games, penalty }
+    return { points: points + efBonus, ex, games, penalty }
   }
 
   let best = feasible[0]!
@@ -221,17 +289,28 @@ export type MostPointsPredictionInput = {
   predictedScore?: { team1Wins: number; team2Wins: number }
 }
 
+export type MostPointsEarlyFinalsInput = {
+  eastFinalist: string
+  westFinalist: string
+  nbaChampion: string
+}
+
 /**
  * Hypothetical final scores for every eligible open series that maximize the
- * given user’s series prediction points (subject to scores still possible from
- * the current series record). Series without a score prediction use the
- * shortest possible completion.
+ * given user’s total achievable points (subject to scores still possible from
+ * the current series record). Both per-series prediction points and Early
+ * Finals points (5 per correct conference finalist + 5 for NBA champion) are
+ * folded into the optimization target; Early Finals bonuses only apply to
+ * conference and finals round series. Series without a score prediction use
+ * the shortest possible completion (still preferring Early-Finals-friendly
+ * winners for conference/finals series).
  */
 export function buildMostPointsHypoScores(args: {
   series: MostPointsSeriesInput[]
   predictions: MostPointsPredictionInput[]
   userId: string
   eligibleSeriesIds: Set<string>
+  earlyFinals?: MostPointsEarlyFinalsInput | null
 }): Record<string, { team1Wins: number; team2Wins: number }> {
   const predBySeries = new Map<string, MostPointsPredictionInput>()
   for (const p of args.predictions) {
@@ -239,6 +318,7 @@ export function buildMostPointsHypoScores(args: {
     predBySeries.set(p.seriesId, p)
   }
 
+  const earlyFinals = args.earlyFinals ?? null
   const out: Record<string, { team1Wins: number; team2Wins: number }> = {}
 
   for (const s of args.series) {
@@ -249,13 +329,13 @@ export function buildMostPointsHypoScores(args: {
     const predRow = predBySeries.get(s._id)
 
     if (predRow) {
-      out[s._id] = bestOutcomeForUserPrediction(s, cur, predRow)
+      out[s._id] = bestOutcomeForUserPrediction(s, cur, predRow, earlyFinals)
     } else {
       const feasible = enumerateFeasibleFinalScores(
         cur.team1Wins,
         cur.team2Wins
       )
-      out[s._id] = pickShortestFeasible(feasible)
+      out[s._id] = pickBestForEarlyFinalsOrShortest(s, feasible, earlyFinals)
     }
   }
 

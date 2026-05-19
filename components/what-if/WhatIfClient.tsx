@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSession } from "next-auth/react"
 import { PlayoffBracket } from "@/components/bracket/PlayoffBracket"
+import { BracketTeamBox } from "@/components/bracket/BracketTeamBox"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -326,6 +327,133 @@ type SortField =
 
 type SortDirection = "asc" | "desc"
 
+function EarlyFinalsPickColumn({
+  heading,
+  selected,
+  actualWinner,
+  bonusIfCorrect,
+  showCheck,
+}: {
+  heading: string
+  selected: string | null
+  actualWinner: string | null
+  bonusIfCorrect: number
+  showCheck: boolean
+}) {
+  const hasPick = !!selected
+  const isCorrect = hasPick && !!actualWinner && selected === actualWinner
+  return (
+    <div className="flex flex-col items-center gap-2 w-[160px] md:w-[200px] shrink-0">
+      <div className="text-[10px] md:text-xs font-semibold text-muted-foreground text-center leading-tight">
+        {heading}
+      </div>
+      {hasPick ? (
+        <BracketTeamBox
+          team={selected!}
+          wins={0}
+          hasScore={false}
+          hasPrediction
+          isWinner={isCorrect}
+          actualWinner={actualWinner ?? undefined}
+        />
+      ) : (
+        <div className="h-10 md:h-12 w-full rounded-md border-2 border-dashed border-border flex items-center justify-center text-[10px] md:text-xs text-muted-foreground">
+          No pick
+        </div>
+      )}
+      {showCheck && isCorrect && (
+        <div className="text-[10px] md:text-xs font-medium text-yellow-700 dark:text-yellow-300">
+          +{bonusIfCorrect}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function WhatIfEarlyFinalsSummary({
+  prediction,
+  outcomes,
+  totalPoints,
+  viewingUserName,
+  isViewingOtherUser,
+}: {
+  prediction: ApiEarlyFinalsRow | null
+  outcomes: {
+    eastConferenceWinner: string | null
+    westConferenceWinner: string | null
+    nbaChampion: string | null
+  }
+  totalPoints: number
+  viewingUserName: string | undefined
+  isViewingOtherUser: boolean
+}) {
+  return (
+    <Card>
+      <CardHeader className="space-y-2">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+          <CardTitle>Early finals predictions</CardTitle>
+          <div className="text-sm text-muted-foreground">
+            <span className="font-semibold text-foreground">
+              {totalPoints}
+            </span>{" "}
+            {totalPoints === 1 ? "point" : "points"} so far (real + simulated)
+          </div>
+        </div>
+        <CardDescription>
+          {prediction ? (
+            isViewingOtherUser && viewingUserName ? (
+              <>
+                Showing{" "}
+                <span className="font-medium text-foreground">
+                  {viewingUserName.split(" ")[0]}&apos;s
+                </span>{" "}
+                early picks. Checkmarks reflect the simulated bracket above
+                (conference winners → 5 pts each, NBA champion → 5 pts).
+              </>
+            ) : (
+              <>
+                Checkmarks reflect the simulated bracket below (conference
+                winners → 5 pts each, NBA champion → 5 pts).
+              </>
+            )
+          ) : (
+            <>This user did not submit early finals predictions.</>
+          )}
+        </CardDescription>
+      </CardHeader>
+      {prediction && (
+        <CardContent>
+          <div className="flex flex-col items-center gap-6 sm:gap-8">
+            <div className="flex flex-wrap items-start justify-center gap-6 sm:gap-10">
+              <EarlyFinalsPickColumn
+                heading="Western Conference Champions"
+                selected={prediction.westFinalist}
+                actualWinner={outcomes.westConferenceWinner}
+                bonusIfCorrect={5}
+                showCheck
+              />
+              <EarlyFinalsPickColumn
+                heading="Eastern Conference Champions"
+                selected={prediction.eastFinalist}
+                actualWinner={outcomes.eastConferenceWinner}
+                bonusIfCorrect={5}
+                showCheck
+              />
+            </div>
+            <EarlyFinalsPickColumn
+              heading="NBA Champion"
+              selected={prediction.nbaChampion}
+              actualWinner={outcomes.nbaChampion}
+              bonusIfCorrect={5}
+              showCheck
+            />
+          </div>
+        </CardContent>
+      )}
+    </Card>
+  )
+}
+
 export function WhatIfClient() {
   const { data: session } = useSession()
   const [payload, setPayload] = useState<WhatIfPayload | null>(null)
@@ -518,14 +646,50 @@ export function WhatIfClient() {
       mostPointsTargetUserId !== session.user.id
   )
 
+  const finalsOutcomes = useMemo(() => {
+    if (!payload) {
+      return {
+        eastConferenceWinner: null,
+        westConferenceWinner: null,
+        nbaChampion: null,
+      } as const
+    }
+    return resolveFinalsOutcomesFromSeries(
+      mergedSeriesOutcomesForEarlyFinals(payload.series, hypoScores)
+    )
+  }, [payload, hypoScores])
+
+  const targetEarlyFinalsRow = useMemo(() => {
+    if (!payload || !mostPointsTargetUserId) return null
+    return (
+      payload.earlyFinals.find((e) => e.userId === mostPointsTargetUserId) ??
+      null
+    )
+  }, [payload, mostPointsTargetUserId])
+
+  const targetEarlyFinalsScore = useMemo(
+    () => calculateEarlyFinalsScore(targetEarlyFinalsRow, finalsOutcomes),
+    [targetEarlyFinalsRow, finalsOutcomes]
+  )
+
   const applyMostPointsScenario = useCallback(() => {
     if (!payload || !mostPointsTargetUserId) return
+    const earlyRow = payload.earlyFinals.find(
+      (e) => e.userId === mostPointsTargetUserId
+    )
     setHypoScores(
       buildMostPointsHypoScores({
         series: payload.series,
         predictions: payload.predictions,
         userId: mostPointsTargetUserId,
         eligibleSeriesIds: new Set(eligibleSeries.map((s) => s._id)),
+        earlyFinals: earlyRow
+          ? {
+              eastFinalist: earlyRow.eastFinalist,
+              westFinalist: earlyRow.westFinalist,
+              nbaChampion: earlyRow.nbaChampion,
+            }
+          : null,
       })
     )
   }, [payload, mostPointsTargetUserId, eligibleSeries])
@@ -787,14 +951,16 @@ export function WhatIfClient() {
                     <TableRow
                       key={row.userId}
                       className={cn(
+                        "cursor-pointer",
                         isYou
                           ? "bg-primary/10 hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20 border-l-2 border-l-primary font-semibold"
                           : isScenarioTarget
                             ? "bg-amber-500/[0.08] hover:bg-amber-500/[0.12] dark:bg-amber-500/10 dark:hover:bg-amber-500/[0.14] border-l-2 border-l-amber-600 dark:border-l-amber-400 font-medium"
-                            : undefined
+                            : "hover:bg-muted/50"
                       )}
                       data-current-user={isYou || undefined}
                       data-showing-for={isScenarioTarget && !isYou ? true : undefined}
+                      onClick={() => setExplicitMostPointsUserId(row.userId)}
                     >
                       <TableCell>
                         {totalScoreRanks.get(row.userId) ?? index + 1}
@@ -835,6 +1001,14 @@ export function WhatIfClient() {
           </div>
         </CardContent>
       </Card>
+
+      <WhatIfEarlyFinalsSummary
+        prediction={targetEarlyFinalsRow}
+        outcomes={finalsOutcomes}
+        totalPoints={targetEarlyFinalsScore}
+        viewingUserName={whatIfBracketViewingUserName}
+        isViewingOtherUser={isWhatIfBracketViewingOtherUser}
+      />
 
       <Card>
         <CardHeader>
